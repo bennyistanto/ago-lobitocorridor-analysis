@@ -88,7 +88,7 @@ The system uses a consistent 1-km grid with rioxarray/xarray tools and careful c
    
    Equity check: correlations and outliers at municipality level to validate targeting approaches.
 
-8. **[How do places in the corridor interact?](chapters/08-od-lite.md)**
+8. **[How do places in the corridor interact?](chapters/08-movement.md)**
    
    Flow patterns between municipalities and sample trips, where exchanges are strongest under current conditions.
 

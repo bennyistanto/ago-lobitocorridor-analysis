@@ -1,30 +1,48 @@
+# Table of content
+# Learn more at https://jupyterbook.org/customize/toc.html
 format: jb-book
-root: README
+root: docs/index
 
 parts:
-  - caption: Examples
-    numbered: True
+  - caption: Decision views
     chapters:
-      - file: notebooks/world-bank-api.ipynb
-      - file: notebooks/world-bank-package.ipynb
-      - file: notebooks/nasa-apod.ipynb
-      - file: notebooks/bibliography.ipynb
-  - caption: Recommended Workflows
+      - file: docs/chapters/01-decide_first
+        title: If we could only start in three places…
+      - file: docs/chapters/02-muni_shortlist
+        title: Are we putting scarce resources where they matter most?
+      - file: docs/chapters/03-actionable-hotspots
+        title: Where are the actionable hotspots?
+      - file: docs/chapters/04-scenarios
+        title: What happens when we change the rules?
+      - file: docs/chapters/05-catchments
+        title: Who benefits within 30/60/120 minutes?
+      - file: docs/chapters/06-synergies
+        title: Can we stack with other investments?
+      - file: docs/chapters/07-equity-lens
+        title: Do the priorities align with poverty & food insecurity?
+      - file: docs/chapters/08-movement
+        title: How do places in the corridor interact?
+
+  - caption: Run anywhere
     chapters:
-      - file: docs/folders-and-naming
-      - file: docs/git-workflows
-      - file: docs/notebooks-workflows
-      - file: docs/presenting-results
-  - caption: Gallery
+      - file: docs/chapters/09-cheatsheet
+        title: Change the knobs, not the code
+      - file: docs/chapters/10-aoi-playbook
+        title: Run this anywhere along the corridor!
+      - file: docs/chapters/11-data-menu
+        title: What data went in?
+      - file: docs/chapters/12-how-it-works
+        title: How it works?
+      - file: docs/chapters/13-limits
+        title: Handle with care
+      - file: docs/chapters/14-provenance
+        title: Provenance & reproducibility
+      - file: docs/chapters/15-appendix
+        title: Appendix (for analysts)
+
+  - caption: Reference (Code & Data)
     chapters:
-      - file: docs/gallery
-  - caption: Additional Resources
-    chapters:
-      - url: https://datapartnership.org
-        title: Development Data Partnership
-      - url: https://wbdatalab.org
-        title: World Bank Data Lab
-      - url: https://www.worldbank.org/en/about/unit/unit-dec
-        title: World Bank DEC
-      - url: https://www.worldbank.org/en/research/dime
-        title: World Bank DIME
+      - file: docs/reference/all-code
+        title: All pipeline code
+      - file: docs/reference/all-data
+        title: Data dictionary & sources
