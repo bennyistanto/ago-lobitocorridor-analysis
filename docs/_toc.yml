@@ -42,7 +42,7 @@ parts:
 
   - caption: Reference (Code & Data)
     chapters:
-      - file: docs/reference/all-code
+      - file: docs/references/all-code
         title: All pipeline code
-      - file: docs/reference/all-data
+      - file: docs/references/all-data
         title: Data dictionary & sources
