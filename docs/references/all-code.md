@@ -148,3 +148,11 @@ You can use the search box on this page to find functions or parameters across s
 :caption: utils_geo.py
 ```
 ````
+
+````{dropdown} Shared utilities — config.py
+```{literalinclude} ../../src/config.py
+:language: python
+:linenos:
+:caption: config.py
+```
+````
