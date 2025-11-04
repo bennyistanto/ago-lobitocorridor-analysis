@@ -60,11 +60,11 @@ The system uses a consistent 1-km grid with rioxarray/xarray tools and careful c
 ``````{admonition} Click the button to reveal!
 :class: dropdown
 
-1. **[If we could only start in three places…](chapters/01_decide_first.md)**
+1. **[If we could only start in three places…](chapters/01-decide-first.md)**
    
    A 60-second snapshot: top clusters and municipalities to target first, with key numbers (people within 60 minutes, cropland coverage, electrification gaps).
 
-2. **[Are we putting scarce resources where they matter most?](chapters/02_muni_shortlist.md)**
+2. **[Are we putting scarce resources where they matter most?](chapters/02-muni-shortlist.md)**
    
    A ranked shortlist using a transparent scoring system, see and adjust the rules behind the rankings.
 
