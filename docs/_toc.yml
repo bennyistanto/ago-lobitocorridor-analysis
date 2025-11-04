@@ -6,9 +6,9 @@ root: docs/index
 parts:
   - caption: Decision views
     chapters:
-      - file: docs/chapters/01-decide_first
+      - file: docs/chapters/01-decide-first
         title: If we could only start in three places…
-      - file: docs/chapters/02-muni_shortlist
+      - file: docs/chapters/02-muni-shortlist
         title: Are we putting scarce resources where they matter most?
       - file: docs/chapters/03-actionable-hotspots
         title: Where are the actionable hotspots?
