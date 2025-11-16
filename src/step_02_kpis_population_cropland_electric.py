@@ -23,7 +23,7 @@ import numpy as np
 import pandas as pd
 
 from config import (
-    PATHS, PARAMS, out_r, out_t, 
+    AOI, PATHS, PARAMS, out_r, out_t, 
     get_logger, KPI_CSV
 )
 from utils_geo import (
@@ -112,66 +112,95 @@ def main() -> None:
         return
 
     rows: list[Dict[str, Any]] = []
+
     for thr in sorted(set(PARAMS.ISO_THRESH)):
         mask = open_template(out_r(f"iso_le_{thr}min_1km"))
-
-        # Guard against unexpected shape mismatch early
         _assert_same_shape(mask, pop)
 
-        # Population within isochrone (sum where mask==1)
-        pop_sum = zonal_sum(mask, pop)
+        # Robust boolean "inside" mask
+        mv = mask.values
+        # treat NaN as outside; allow float/bool/byte variants
+        inside = np.where(np.isnan(mv), False, mv >= 0.5)
 
-        # Cropland km² within isochrone (area-true)
+        # Precompute this once for counts
+        cells_within = float(np.count_nonzero(inside))
+
+        # Population within (zonal sum)
+        # If your `zonal_sum` expects mask==1, keep it; else compute directly:
+        pop_sum = float(zonal_sum(mask, pop))  # or: float(np.nansum(np.where(inside, pop.values, 0.0)))
+
+        # Cropland km² within (area-true)
         if hasattr(cell_km2_est, "shape"):
-            cl_km2_sum = float(
-                np.nansum(np.where(mask.values == 1, cl_frac.values * cell_km2_est, np.nan))
-            )
+            cl_km2_sum = float(np.nansum(np.where(inside, cl_frac.values * cell_km2_est, 0.0)))
+            area_km2_within = float(np.nansum(np.where(inside, cell_km2_est, 0.0)))
         else:
-            cl_sum_frac = np.where(mask.values == 1, cl_frac.values, np.nan)
-            cl_km2_sum = float(np.nansum(cl_sum_frac)) * float(cell_km2_est)
+            cl_km2_sum = float(np.nansum(np.where(inside, cl_frac.values, 0.0))) * float(cell_km2_est)
+            area_km2_within = cells_within * float(cell_km2_est)
 
-        # Electrified cells within isochrone (count)
-        elg_sum = float(np.nansum((mask.values == 1) & (elg.values == 1)))
+        # Electrified cells within (count of grid-present cells)
+        elg_sum = float(np.count_nonzero(inside & (elg.values == 1)))
 
-        # After computing elg_sum / elg_total and before rows.append(...)
+        # Shared denominators
         no_elec_flag = (elg_total == 0.0)
 
+        # Append row (keep both current + legacy if you still want them)
         rows.append({
-            "threshold_min": thr,
-            "pop_sum": pop_sum,
+            "aoi": AOI,
+            "travel_cut_min": float(thr),
+            "pop_within": pop_sum,
+            "cells_within": cells_within,
+            "area_km2_within": area_km2_within,
+
+            # % KPIs
             "pop_pct": (pop_sum / pop_total * 100.0) if pop_total > 0 else np.nan,
             "cropland_km2": cl_km2_sum,
             "cropland_pct": (cl_km2_sum / cl_km2_tot * 100.0) if cl_km2_tot > 0 else np.nan,
             "electrified_cells": elg_sum,
             "electrified_pct": (elg_sum / elg_total * 100.0) if elg_total > 0 else np.nan,
-            "cell_area_km2": cell_km2_log,
+
+            # context
+            "cell_area_km2": float(cell_km2_log),
             "note_electrification_denominator_zero": bool(no_elec_flag),
+
+            # legacy/compat (remove if not needed)
+            "threshold_min": float(thr),
+            "pop_sum": pop_sum,
         })
 
         log.info(
-            f"≤{thr:>3} min | pop={pop_sum:,.0f} "
-            f"({(pop_sum / pop_total * 100.0 if pop_total else np.nan):.1f}%) | "
+            f"≤{thr:>3} min | cells={cells_within:,.0f} (area={area_km2_within:,.2f} km²) | "
+            f"pop={pop_sum:,.0f} ({(pop_sum / pop_total * 100.0 if pop_total else np.nan):.1f}%) | "
             f"crop={cl_km2_sum:,.2f} km² "
             f"({(cl_km2_sum / cl_km2_tot * 100.0 if cl_km2_tot else np.nan):.1f}%) | "
             f"elec_cells={elg_sum:,.0f} "
             f"({(elg_sum / elg_total * 100.0 if elg_total else np.nan):.1f}%)"
         )
 
+
     # -------------------------------------------------------------------------
     # Sanity checks: KPI curves should be non-decreasing with larger thresholds
     # -------------------------------------------------------------------------
-    kpis = pd.DataFrame(rows).sort_values("threshold_min")
+    kpis = pd.DataFrame(rows).sort_values("travel_cut_min")
 
-    # Use sums for monotonicity (more numerically stable than %)
-    _assert_monotone_increasing(kpis["pop_sum"].to_numpy(),          "Population within isochrone")
-    _assert_monotone_increasing(kpis["cropland_km2"].to_numpy(),     "Cropland km² within isochrone")
-    _assert_monotone_increasing(kpis["electrified_cells"].to_numpy(),"Electrified cells within isochrone")
+    # Monotonic checks
+    _assert_monotone_increasing(kpis["pop_within"].to_numpy(),       "Population within isochrone")
+    _assert_monotone_increasing(kpis["cells_within"].to_numpy(),     "Cells within isochrone")
+    _assert_monotone_increasing(kpis["area_km2_within"].to_numpy(),  "Area (km²) within isochrone")
 
-    # Repeat denominators per row for spreadsheet clarity (optional)
-    kpis["pop_total"]        = pop_total
+    # AOI totals repeated per row (handy in spreadsheets)
+    kpis["pop_total"] = pop_total
     kpis["cropland_total_km2"] = cl_km2_tot
     kpis["electrified_total_cells"] = elg_total
 
+    # Optional: drop legacy duplicates if you don’t need them
+    if "threshold_min" in kpis.columns and "travel_cut_min" in kpis.columns:
+        # keep only the canonical column
+        kpis = kpis.drop(columns=["threshold_min", "pop_sum"], errors="ignore")
+
+    # Extra guardrails: keep % in [0,100] within tiny tolerance
+    for c in ("pop_pct", "cropland_pct", "electrified_pct"):
+        if c in kpis:
+            kpis.loc[(kpis[c] < -1e-6) | (kpis[c] > 100 + 1e-6), c] = np.nan
 
     # -------------------------------------------------------------------------
     # Save table

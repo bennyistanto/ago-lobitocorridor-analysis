@@ -482,21 +482,31 @@ def main() -> None:
     # Use a local sidecar flag to avoid scope issues
     _write_sidecar = bool(WRITE_JSON_SIDECARS)
 
+    # Baseline path (canonical Step-07 top-mask)
+    baseline_path = Path(PRIORITY_TOP10_TIF)
+
     # Collect per-scenario metadata for a JSON sidecar
-    scenarios_meta = []
+    # Use a dict so we can add top-level fields and a list of scenarios
+    scenarios_meta = {
+        "aoi": AOI,
+        "target_grid": Path(PARAMS.TARGET_GRID).name if isinstance(PARAMS.TARGET_GRID, str) else "in-memory",
+        "baseline_source": ("file" if baseline_path.exists() else "first_scenario"),
+        "scenarios": []
+    }
 
     # Load rasters needed
     rasters = _load_all_inputs(T)
-
+    
     # Load (or compute) baseline mask
     baseline_path = Path(PRIORITY_TOP10_TIF)
     if baseline_path.exists():
         base_mask = rxr.open_rasterio(baseline_path, masked=True).squeeze()
         if (base_mask.shape != T.shape) or (base_mask.rio.transform()!=T.rio.transform()) or (base_mask.rio.crs!=T.rio.crs):
             base_mask = base_mask.rio.reproject_match(T, resampling=RESAMPLE_DEFAULT_CAT)
-
+        
         log.info(f"Using on-disk baseline: {baseline_path.name}")
     else:
+        base_mask = None
         log.info("No on-disk baseline found; will treat the first scenario as baseline.")
 
     # Remember original PARAMS to restore later
@@ -536,7 +546,7 @@ def main() -> None:
                 write_geo_sidecar(out_mask, like=T, extra={"kind": "scenario_mask", "scenario_id": scn.id})
 
         # Collect machine-readable scenario meta (weights, masks, selection, outputs)
-        scenarios_meta.append({
+        scenarios_meta["scenarios"].append({
             "id": scn.id,
             "desc": scn.desc,
             "use_components": list(scn.USE_COMPONENTS),
@@ -579,8 +589,21 @@ def main() -> None:
 
     # Write scenario summary (no need to restore PARAMS anymore)
     df = pd.DataFrame(rows)
+
+    # tidy numerics for readability and stable diffs
+    for c in ("selected_km2", "pop_selected", "ag_km2_selected", "drought_mean_selected",
+            "overlap_pct_vs_baseline", "jaccard_vs_baseline"):
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors="coerce").astype("float64").round(4)
+
+    if "selected_cells" in df.columns:
+        df["selected_cells"] = pd.to_numeric(df["selected_cells"], errors="coerce").round(0).astype("Int64")
+    if "baseline_cells" in df.columns:
+        df["baseline_cells"] = pd.to_numeric(df["baseline_cells"], errors="coerce").round(0).astype("Int64")
+
     out_csv = out_t("priority_scenarios_summary")
     df.to_csv(out_csv, index=False)
+
     log.info(f"Wrote scenario summary → {Path(out_csv).name} | scenarios={len(SCENARIOS)} | masks_saved={written}")
 
     if _write_sidecar:

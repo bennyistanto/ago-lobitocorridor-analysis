@@ -39,7 +39,7 @@ Run Steps **07 → 10 → 11** once. This chapter only loads saved outputs (no r
 
 **This cell loads the cluster KPIs table from `/outputs` for the current AOI.**
 
-```python
+```{code-cell} ipython3
 import os
 import pandas as pd
 from pathlib import Path
@@ -56,7 +56,7 @@ clusters.head(10)
 
 **This cell shows the top-10 clusters by population (headline view).**
 
-```python
+```{code-cell} ipython3
 top_pop = (clusters
            .sort_values("pop", ascending=False)
            .head(10)[["cluster_id","NAM_2","area_km2","pop","cropland_km2","pct_electrified"]])
@@ -66,7 +66,7 @@ top_pop
 
 **This cell shows the top-10 clusters by cropland area (km²).**
 
-```python
+```{code-cell} ipython3
 top_crop = (clusters
             .sort_values("cropland_km2", ascending=False)
             .head(10)[["cluster_id","NAM_2","area_km2","pop","cropland_km2","pct_electrified"]])
@@ -76,7 +76,7 @@ top_crop
 
 **This cell summarizes which municipalities host the most/largest clusters.**
 
-```python
+```{code-cell} ipython3
 cov = (clusters
        .groupby("NAM_2", as_index=False)
        .agg(clusters=("cluster_id","count"),
@@ -87,10 +87,9 @@ cov = (clusters
 cov.head(10)
 ```
 
-*(Optional tiny chart—safe to skip if you want a text-only book.)*
 **This cell draws a quick bar chart of the top 8 clusters by population.**
 
-```python
+```{code-cell} ipython3
 import matplotlib.pyplot as plt
 
 t8 = clusters.nlargest(8, "pop")

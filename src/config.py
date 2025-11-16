@@ -34,7 +34,7 @@ from pathlib import Path
 import os
 import sys
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
 # third-party
@@ -128,6 +128,7 @@ class Paths:
 
     # Vectors
     BND_ADM1: Path
+    BND_ADM2: Path
     ROADS: Path
     RAIL: Path
     CROPLAND: Path
@@ -175,6 +176,7 @@ def _build_paths() -> Paths:
 
         # --- Vectors (AOI-parametric filenames) ---
         BND_ADM1 = vec / _fmt("ago_bnd_{AOI}_adm1_a.shp"),
+        BND_ADM2 = vec / _fmt("ago_bnd_{AOI}_adm2_a.shp"),
         ROADS    = vec / _fmt("ago_trs_{AOI}_roads_osm_l.shp"),
         RAIL     = vec / _fmt("ago_trs_{AOI}_railways_osm_l.shp"),
         CROPLAND = vec / _fmt("ago_phy_{AOI}_cropland_10m_worldcover_a.shp"),
@@ -250,6 +252,11 @@ FLOOD_EXCEED_FRACTION_MIN = 0.25  # fraction of 1-km cell that must be flooded
 # ======================================================================
 # 5) Admin2 (RAPP) ingestion controls & themes
 # ======================================================================
+
+# --- Admin2 fields (RAPP shapefiles) ---
+ADMIN2_CODE_FIELD   = "ADM2CD_c"
+ADMIN2_NAME1_FIELD  = "NAM_1"
+ADMIN2_NAME2_FIELD  = "NAM_2"
 
 # File prefixes for RAPP shapes (both gov & pop sources are supported)
 MUNI_FILE_PREFIXES = ("ago_gov", "ago_pop")
@@ -395,12 +402,31 @@ OPTIONAL_GRID_OVERLAYS = {
     # "pov": "muni_poverty_poverty_rural_1km",  # example if you prefer muni raster
 }
 
+OPTIONAL_GRID_OVERLAYS.update({
+    "poverty":  "muni_poverty_poverty_rural_1km",
+    "food":     "muni_foodinsecurity_food_insec_scale_1km",
+    "muni_tt":  "muni_traveltime_avg_hours_to_market_financial_1km",
+})
+
 # Optional AOI boundary polygon (for masking rasters, if used)
 AOI_BND = PATHS.BND_ADM1
 
 # If True, downstream steps may mask outputs strictly to the AOI boundary.
 # (Keep as a simple module-level toggle so it’s readable without touching PARAMS.)
-MASK_OUTSIDE_AOI: bool = True
+MASK_OUTSIDE_AOI: bool = False
+
+# --- AOI masking policy -------------------------------------------------
+# "defer"  : (recommended) Do NOT mask in Step 00; apply mask only at final writes in later steps.
+# "eager"  : Mask at every write_gtiff_masked call (legacy behavior).
+# "none"   : Never mask (ignore AOI).
+MASK_POLICY: str = os.environ.get("MASK_POLICY", "defer").lower()  # "defer" | "eager" | "none"
+
+# If True, we validate AOI before masking and skip mask (with warning) if no overlap.
+AOI_BND_VALIDATE: bool = True
+
+# Consider AOI "non-overlapping" if the mask covers less than this fraction of the target grid.
+# Use a tiny floor (e.g., 0.005 = 0.5%) to still allow very small AOIs.
+AOI_MIN_OVERLAP_PCT: float = 0.005
 
 # Optional project/reference layers (steps should handle missing files gracefully)
 PROJECTS_GOV = PATHS.VEC / f"ago_poi_{AOI}_projects_gov_p.shp"
@@ -451,6 +477,12 @@ class Params:
     # Selection: choose one
     TOP_PCT_CELLS: float | None
     TOP_KM2: float | None
+    # radii in km for site/cluster counts
+    SYNERGY_RADII_KM: tuple[int, ...]    # e.g., (5, 10, 30)
+    # When constructing PARAMS (with a small sanitizer)
+    def _sanitize_radii(vals):
+        return tuple(sorted({int(r) for r in (vals or []) if int(r) > 0})) or (5, 10, 30)
+
 
     # --- Overlay weights (used only if overlays present) ---
     W_POV: float               # poverty (0..1)
@@ -514,6 +546,9 @@ PARAMS = Params(
     TOP_PCT_CELLS=0.10,  # Top 10%
     TOP_KM2=None,        # or set e.g. 1200.0 for fixed area
 
+    # Synergy / proximity
+    SYNERGY_RADII_KM=_sanitize_radii((5, 10, 30)),
+
     # Overlay weights (used if overlays exist)
     W_POV=0.15,
     W_FOOD=0.10,
@@ -575,7 +610,7 @@ def write_geo_sidecar(geotiff_path: Path, *, like=None, crs=None, transform=None
       - crs / transform explicitly (rasterio-style Affine), OR
       - nothing (we'll open the GeoTIFF to read metadata).
     """
-    meta = {"aoi": aoi, "timestamp_utc": datetime.utcnow().isoformat(timespec="seconds")}
+    meta = {"aoi": aoi, "timestamp_utc": datetime.now(timezone.utc).isoformat(timespec="seconds")}
     try:
         if like is not None:
             meta.update({
@@ -614,7 +649,13 @@ def out_f(stem: str, ext: str = ".png") -> Path:
     """Figure output path → outputs/figs/{AOI}_{stem}.png"""
     return PATHS.OUT_F / f"{AOI}_{stem}{ext}"
 
+# Admin2 precompute (Step 00)
+ADMIN2_ID_TIF   = out_r("admin2_id_1km")      # int32 labels; 0 = background
+ADMIN2_LUT_CSV  = out_t("admin2_lookup")      # columns: lab, ADM2CD_c, NAM_1, NAM_2
+
 # Canonical filenames (kept for cross-step compatibility)
+PRIORITY_TIF_V1         = out_r("priority_score_v1_0_1")
+PRIORITY_TOP10_TIF_V1   = out_r("priority_top10_mask_v1")
 PRIORITY_TIF            = out_r("priority_score_0_1")
 PRIORITY_TOP10_TIF      = out_r("priority_top10_mask")
 FLOOD1K_TIF             = out_r("flood_rp100_maxdepth_1km")

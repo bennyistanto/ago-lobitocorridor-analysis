@@ -17,6 +17,7 @@ This page **inspects** files referenced by `config.py` and those written by Step
 * Read `config.PATHS` and list canonical **input rasters/vectors** for the AOI.
 * Stat key **aligned 1-km** rasters from Step 00 (pop/ntl/veg/drought, cropland presence & fraction, settlement/electricity masks, flood maxdepth 1-km).
 * Enumerate **RAPP Admin2 themes** defined in `config.ADMIN2_THEMES` / `THEME_VARS`.
+* (Optional) RWI grid (Meta, -2..+2) aligned at 1-km from Step 00, used for equity-sensitive overlays and OD mass tilt.
 
 ## Outputs
 
@@ -28,7 +29,7 @@ None—this is a **catalog** view only. (If you want, export the table at the bo
 
 **This cell loads config and prints key paths for the current AOI.**
 
-```python
+```{code-cell} ipython3
 import os, sys
 from pathlib import Path
 
@@ -54,7 +55,7 @@ print("Settle:", PATHS.SETTLE.name)
 
 **This cell compiles a table of core input files and whether they exist.**
 
-```python
+```{code-cell} ipython3
 import pandas as pd
 
 core = {
@@ -78,7 +79,7 @@ df_core
 
 **This cell stats the aligned 1-km rasters from Step 00 (if present).**
 
-```python
+```{code-cell} ipython3
 import rasterio as rio
 
 OUT_R = ROOT / "outputs" / "rasters"
@@ -120,16 +121,16 @@ df_derived
 
 **This cell lists the Admin2 RAPP themes configured and their variable names.**
 
-```python
+```{code-cell} ipython3
 themes = [{"theme": t, "variables": ", ".join(THEME_VARS.get(t, []))} for t in ADMIN2_THEMES]
 pd.DataFrame(themes).sort_values("theme")
 ```
 
 **This cell checks if the expected Admin2 shapefile exists for each theme (per AOI naming).**
 
-```python
-# Naming convention per your standard: data/vectors/admin2_rapp/ago_gov_{aoi}_{theme}_rapp_2020_a.shp
-BASE = ROOT / "data" / "vectors" / "admin2_rapp"
+```{code-cell} ipython3
+# Naming convention per your standard: data/vectors/ago_gov_{aoi}_{theme}_rapp_2020_a.shp
+BASE = ROOT / "data" / "vectors" "
 rows = []
 for t in ADMIN2_THEMES:
     shp = BASE / f"ago_gov_{AOI}_{t}_rapp_2020_a.shp"
@@ -139,7 +140,7 @@ pd.DataFrame(rows).sort_values("theme")
 
 **(Optional) This cell exports the two tables above as a tiny “data menu” CSV bundle for archiving.**
 
-```python
+```{code-cell} ipython3
 OUT_T = ROOT / "outputs" / "tables"
 OUT_T.mkdir(parents=True, exist_ok=True)
 p1 = OUT_T / f"{AOI}_data_menu_core.csv"

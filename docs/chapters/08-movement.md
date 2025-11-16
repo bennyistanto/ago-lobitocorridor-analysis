@@ -1,4 +1,4 @@
-# 9. Main movement patterns
+# 8. Main movement patterns
 
 ## Problem
 
@@ -24,10 +24,14 @@ Use a light-weight **gravity model** at Admin2 level (population × opportunitie
 
 ## Outputs
 
-* `outputs/tables/{AOI}_od_flows.csv`
-  *(columns: `o_adm2`, `d_adm2`, `flow`, `dist_km`, optional: `o_pop`, `d_market`, …)*
-* `outputs/tables/{AOI}_od_agents_sample.csv` *(optional)*
+* `outputs/tables/{AOI}_od_gravity.csv`  
+  *(columns: `oi`, `dj`, `flow`, `dist_km`; where `oi`/`dj` are Admin2 codes, usually `ADM2CD_c`)*
+* `outputs/tables/{AOI}_od_zone_attrs.csv`  
+  *(columns: `ADM2CD_c`, `NAM_1`, `NAM_2`, `lon`, `lat`, `pop`, optional: `rwi_z`, `mass`)*  
+* `outputs/tables/{AOI}_od_agents.csv` *(optional)*  
   *(columns: `agent_id`, `o_lon`, `o_lat`, `d_lon`, `d_lat`, optional: `weight`)*
+
+Gravity flows and zone attributes are always written by **Step 14**; agent sampling can be disabled by setting `OD_N_AGENTS=0` in `config.PARAMS` if needed.
 
 ## How to run (analyst)
 
@@ -35,7 +39,7 @@ Run **Step 14** once to create the OD tables. This chapter only **loads** saved 
 
 **This cell loads OD flows and (if present) sampled agents for the current AOI.**
 
-```python
+```{code-cell} ipython3
 import os
 import pandas as pd
 from pathlib import Path
@@ -44,78 +48,125 @@ ROOT = Path(os.getenv("PROJECT_ROOT", "."))
 AOI  = os.getenv("AOI", "moxico")
 OUT_T = ROOT / "outputs" / "tables"
 
-flows_path  = OUT_T / f"{AOI}_od_flows.csv"
-agents_path = OUT_T / f"{AOI}_od_agents_sample.csv"
+flows_path  = OUT_T / f"{AOI}_od_gravity.csv"
+zones_path  = OUT_T / f"{AOI}_od_zone_attrs.csv"
+agents_path = OUT_T / f"{AOI}_od_agents.csv"
 
-flows  = pd.read_csv(flows_path)  if flows_path.exists()  else None
+flows = pd.read_csv(flows_path)  if flows_path.exists()  else None
+zones = pd.read_csv(zones_path)  if zones_path.exists()  else None
 agents = pd.read_csv(agents_path) if agents_path.exists() else None
 
-print("Loaded:", flows_path.name if flows is not None else "no od_flows",
-      "|", agents_path.name if agents is not None else "no agents_sample")
+print("Loaded:",
+      flows_path.name if flows is not None else "no od_gravity",
+      "|",
+      zones_path.name if zones is not None else "no od_zone_attrs",
+      "|",
+      agents_path.name if agents is not None else "no od_agents")
 ```
 
 ## Quick results
 
 **This cell previews the top 15 OD pairs by modelled flow (biggest interaction).**
 
-```python
-if flows is not None:
-    top_pairs = flows.sort_values("flow", ascending=False).head(15)
-    top_pairs[["o_adm2","d_adm2","flow","dist_km"]]
+```{code-cell} ipython3
+if (flows is not None) and (zones is not None):
+    # Map Admin2 code → name
+    z = zones.set_index("ADM2CD_c")
+    flows_named = (
+        flows.copy()
+        .assign(
+            o_adm2 = flows["oi"],
+            d_adm2 = flows["dj"],
+        )
+        .merge(z[["NAM_2"]].rename(columns={"NAM_2": "o_name"}),
+               left_on="o_adm2", right_index=True, how="left")
+        .merge(z[["NAM_2"]].rename(columns={"NAM_2": "d_name"}),
+               left_on="d_adm2", right_index=True, how="left")
+    )
+
+    top_pairs = flows_named.sort_values("flow", ascending=False).head(15)
+    top_pairs[["o_adm2","o_name","d_adm2","d_name","flow","dist_km"]]
 else:
-    print("OD flows not found; run Step 14.")
+    print("OD flows or zone attributes not found; run Step 14.")
 ```
 
 **This cell aggregates flows by origin and by destination to see main senders/receivers.**
 
-```python
-if flows is not None:
-    by_origin = (flows.groupby("o_adm2", as_index=False)["flow"].sum()
-                      .sort_values("flow", ascending=False)
-                      .rename(columns={"o_adm2":"adm2","flow":"outflow"}))
-    by_dest   = (flows.groupby("d_adm2", as_index=False)["flow"].sum()
-                      .sort_values("flow", ascending=False)
-                      .rename(columns={"d_adm2":"adm2","flow":"inflow"}))
+```{code-cell} ipython3
+if (flows is not None) and (zones is not None):
+    z = zones.set_index("ADM2CD_c")
+
+    by_origin = (
+        flows.groupby("oi", as_index=False)["flow"].sum()
+             .rename(columns={"oi": "adm2", "flow": "outflow"})
+             .merge(z[["NAM_2"]], left_on="adm2", right_index=True, how="left")
+    ).sort_values("outflow", ascending=False)
+
+    by_dest = (
+        flows.groupby("dj", as_index=False)["flow"].sum()
+             .rename(columns={"dj": "adm2", "flow": "inflow"})
+             .merge(z[["NAM_2"]], left_on="adm2", right_index=True, how="left")
+    ).sort_values("inflow", ascending=False)
+
     by_origin.head(10), by_dest.head(10)
 else:
-    print("OD flows not found; run Step 14.")
+    print("OD flows or zone attributes not found; run Step 14.")
 ```
 
 **This cell computes a simple centrality proxy: (inflow + outflow) per municipality.**
 
-```python
-if flows is not None:
-    cent = by_origin.merge(by_dest, on="adm2", how="outer").fillna(0.0)
-    cent["throughput"] = cent["inflow"] + cent["outflow"]
-    cent.sort_values("throughput", ascending=False).head(15)
+```{code-cell} ipython3
+if (flows is not None) and (zones is not None):
+    z = zones.set_index("ADM2CD_c")
+
+    by_origin = flows.groupby("oi", as_index=False)["flow"].sum().rename(columns={"oi":"adm2","flow":"outflow"})
+    by_dest   = flows.groupby("dj", as_index=False)["flow"].sum().rename(columns={"dj":"adm2","flow":"inflow"})
+
+    cent = (
+        by_origin.merge(by_dest, on="adm2", how="outer")
+                 .fillna(0.0)
+                 .assign(throughput=lambda d: d["inflow"] + d["outflow"])
+                 .merge(z[["NAM_2"]], left_on="adm2", right_index=True, how="left")
+                 .sort_values("throughput", ascending=False)
+    )
+    cent.head(15)
 else:
-    print("OD flows not found; run Step 14.")
+    print("OD flows or zone attributes not found; run Step 14.")
 ```
 
 **This cell shows a small sample of agent trips (if you saved them).**
 
-```python
+```{code-cell} ipython3
 if agents is not None:
     agents.head(10)
 else:
     print("Agents sample not found; Step 14 may have skipped sampling.")
 ```
 
-*(Optional tiny chart—safe to skip if you want a text-only book.)*
 **This cell draws a quick bar of top-10 OD pairs by flow (labels truncated).**
 
-```python
+```{code-cell} ipython3
 import matplotlib.pyplot as plt
 
-if flows is not None:
+if (flows is not None) and (zones is not None):
+    z = zones.set_index("ADM2CD_c")
     t10 = flows.nlargest(10, "flow").copy()
-    t10["label"] = t10["o_adm2"].astype(str).str[:10] + " → " + t10["d_adm2"].astype(str).str[:10]
+    t10 = (
+        t10
+        .merge(z[["NAM_2"]].rename(columns={"NAM_2":"o_name"}), left_on="oi", right_index=True, how="left")
+        .merge(z[["NAM_2"]].rename(columns={"NAM_2":"d_name"}), left_on="dj", right_index=True, how="left")
+    )
+    t10["label"] = t10["o_name"].fillna(t10["oi"].astype(str)).str[:10] + " → " + \
+                   t10["d_name"].fillna(t10["dj"].astype(str)).str[:10]
+
     plt.figure()
     plt.barh(t10["label"], t10["flow"])
     plt.gca().invert_yaxis()
     plt.xlabel("Modelled flow (relative units)")
     plt.title(f"{AOI}: Top OD pairs (gravity model)")
     plt.show()
+else:
+    print("OD flows or zone attributes not found; run Step 14.")
 ```
 
 ## How to read the results (interpretation)
@@ -132,5 +183,6 @@ if flows is not None:
 
 ### Download
 
-* OD **flows** → `outputs/tables/{AOI}_od_flows.csv`
-* OD **agents sample** (optional) → `outputs/tables/{AOI}_od_agents_sample.csv`
+* OD **flows** → `outputs/tables/{AOI}_od_gravity.csv`
+* OD **zone attributes** → `outputs/tables/{AOI}_od_zone_attrs.csv`
+* OD **agents sample** (optional) → `outputs/tables/{AOI}_od_agents.csv`

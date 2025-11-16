@@ -29,7 +29,7 @@ None—this is a reading and diagnostics page.
 
 **This cell loads config, sets paths, and prints the AOI.**
 
-```python
+```{code-cell} ipython3
 import os, sys
 from pathlib import Path
 
@@ -74,7 +74,7 @@ print("ROOT:", ROOT)
 
 **This cell checks that key derived rasters exist and share the same grid (shape & transform).**
 
-```python
+```{code-cell} ipython3
 import rasterio as rio
 
 OUT_R = ROOT / "outputs" / "rasters"
@@ -98,7 +98,7 @@ infos
 
 **This cell flags mismatched shapes/transforms (a common source of odd maps).**
 
-```python
+```{code-cell} ipython3
 shapes = {(w,h) for (_,w,h,_,_) in infos if isinstance(w,int)}
 transforms = {t for (_,w,h,t,_) in infos if hasattr(t,"a")}
 print("Distinct shapes:", shapes)
@@ -107,7 +107,7 @@ print("Distinct transforms:", len(transforms))
 
 **This cell checks basic value ranges for priority-related inputs (sanity only).**
 
-```python
+```{code-cell} ipython3
 import numpy as np
 import rasterio as rio
 

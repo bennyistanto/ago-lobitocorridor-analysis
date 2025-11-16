@@ -28,9 +28,10 @@ No new data—this page only **reads** `config.py` and the existing files in `ou
 
 **This cell loads AOI, paths, and parameter subset from `config.py` (read-only).**
 
-```python
+```{code-cell} ipython3
 import os, sys, platform, getpass, socket
 from pathlib import Path
+from dataclasses import asdict
 import pprint as _pp
 
 ROOT = Path(os.getenv("PROJECT_ROOT", "."))
@@ -41,26 +42,37 @@ from config import PARAMS
 
 print("AOI:", AOI)
 print("ROOT:", ROOT)
+
 pp = _pp.PrettyPrinter(width=100, compact=True)
+params = asdict(PARAMS)
+
+keep = [
+    "W_ACC","W_POP","W_VEG","W_NTL","W_DRT",
+    "MASK_REQUIRE_RURAL","MASK_MIN_CROPLAND",
+    "SMOOTH_RADIUS",
+    "TOP_PCT_CELLS","TOP_KM2",
+    "MIN_CLUSTER_CELLS",
+    "SYNERGY_RADII_KM",
+    "W_POV","W_FOOD","W_MTT","W_RWI",
+]
+
 print("Parameter subset (priority & selection relevant):")
-keep = ["W_POP","W_NTL","W_VEG","W_DRT",
-        "MASK_MIN_CROPLAND","MASK_URBAN_EXCLUDE","MASK_ELEC_EXISTING",
-        "TOP_PCT_CELLS","TOP_KM2","MIN_CLUSTER_CELLS","MIN_CLUSTER_KM2",
-        "GAUSS_SIGMA_CELLS"]
-pp.pprint({k: PARAMS.get(k, None) for k in keep})
+pp.pprint({k: params.get(k) for k in keep})
 ```
 
 **This cell checks which scenario summary is present and lists scenario names (if any).**
 
-```python
+```{code-cell} ipython3
 import pandas as pd
 
 OUT_T = ROOT / "outputs" / "tables"
 sum_path = OUT_T / f"{AOI}_priority_scenarios_summary.csv"
+
 if sum_path.exists():
     summary = pd.read_csv(sum_path)
-    scenarios = sorted(summary["scenario"].unique().tolist())
-    print("Scenarios found:", scenarios)
+    col = "scenario_id" if "scenario_id" in summary.columns else "scenario"
+    scenarios = sorted(summary[col].unique().tolist())
+    print(f"Scenarios found ({col}):", scenarios)
 else:
     scenarios = None
     print("No scenario summary found.")
@@ -68,25 +80,30 @@ else:
 
 **This cell defines the list of “headline files” to stamp (edit if you need more/less).**
 
-```python
+```{code-cell} ipython3
 OUT_R = ROOT / "outputs" / "rasters"
+
 headline = [
     OUT_T / f"{AOI}_priority_muni_rank.csv",
     OUT_T / f"{AOI}_priority_clusters.csv",
     OUT_T / f"{AOI}_catchments_kpis.csv",
-    OUT_T / f"{AOI}_synergy_sites.csv",
-    OUT_T / f"{AOI}_synergy_clusters.csv",
+    OUT_T / f"{AOI}_site_synergies.csv",
+    OUT_T / f"{AOI}_cluster_synergies.csv",
     OUT_T / f"{AOI}_priority_scenarios_summary.csv",   # may not exist
-    OUT_T / f"{AOI}_od_flows.csv",                      # optional
+    OUT_T / f"{AOI}_od_gravity.csv",                   # optional
+    OUT_T / f"{AOI}_od_zone_attrs.csv",                # optional
+    OUT_T / f"{AOI}_od_agents.csv",                    # optional
     OUT_R / f"{AOI}_priority_clusters_1km.tif",
-    OUT_R / f"{AOI}_priority_top10_mask.tif",           # or your Top-km² name
+    OUT_R / f"{AOI}_priority_top10_mask.tif",          # even when Top-km² is used
 ]
+
 [p.name for p in headline]
+
 ```
 
 **This cell computes size/mtime/md5 for each headline file that exists.**
 
-```python
+```{code-cell} ipython3
 import hashlib, time
 
 def _md5(path, block=2**20):
@@ -116,8 +133,11 @@ stamps
 
 **This cell assembles the full provenance record and prints a compact preview.**
 
-```python
+```{code-cell} ipython3
 from datetime import datetime, timezone
+
+from dataclasses import asdict
+params = asdict(PARAMS)
 
 prov = {
     "generated_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -125,7 +145,7 @@ prov = {
     "user": getpass.getuser(),
     "project_root": str(ROOT),
     "aoi": AOI,
-    "parameters": {k: PARAMS.get(k, None) for k in keep},
+    "parameters": {k: params.get(k) for k in keep},
     "scenarios": scenarios,
     "artifacts": stamps,
 }
@@ -142,7 +162,7 @@ pp.pprint({
 
 **This cell saves the provenance record to `/outputs/tables/{AOI}_provenance.json`.**
 
-```python
+```{code-cell} ipython3
 import json
 
 OUT_T.mkdir(parents=True, exist_ok=True)

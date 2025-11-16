@@ -10,7 +10,7 @@ Join the **priority results** to **RAPP** socio-economic themes (poverty, food i
 
 ## Data
 
-* **Municipality ranking** — `outputs/tables/{AOI}_priority_muni_rank.csv` (Step 07 / 10)
+* **Municipality ranking** — `outputs/tables/{AOI}_priority_muni_rank.csv` (Step 09; Step 06 attributes merged in)
 * **RAPP themes (Admin2)** — Step 06 ingest (poverty, food insecurity) merged into the rank table
 * *(Optional)* Priority clusters — `outputs/tables/{AOI}_priority_clusters.csv` (for cluster-level anecdotes)
 
@@ -28,11 +28,11 @@ Join the **priority results** to **RAPP** socio-economic themes (poverty, food i
 
 ## How to run (analyst)
 
-No recomputation here. Ensure Steps **06** and **07/10** have been run so `/outputs/tables/{AOI}_priority_muni_rank.csv` contains the merged attributes.
+No recomputation here. Ensure Steps **06** and **09** have been run so `/outputs/tables/{AOI}_priority_muni_rank.csv` contains the merged RAPP attributes.
 
 **This cell loads the municipality ranking (with RAPP attributes) from `/outputs`.**
 
-```python
+```{code-cell} ipython3
 import os
 import pandas as pd
 from pathlib import Path
@@ -49,13 +49,13 @@ rank.head(10)
 
 **This cell lists the columns available so you can verify poverty/food fields are present.**
 
-```python
+```{code-cell} ipython3
 rank.columns.tolist()
 ```
 
 **This cell runs the equity correlations (score vs rural poverty; score vs food insecurity) with auto column detection.**
 
-```python
+```{code-cell} ipython3
 # Robust column detection (adjust candidates if your merge used different names)
 pov_candidates  = ["rural_poverty", "poverty_rural", "RURAL_POV", "data1"]  # 'data1' only if mapped that way
 food_candidates = ["food_insec_scale", "food_insecurity", "FOOD_INSEC", "data9"]  # 'data9' if mapped
@@ -74,7 +74,7 @@ results if results else "No poverty/food columns found; revisit Step 06 join."
 
 **This cell flags equity outliers: (A) high priority but low poverty; (B) high poverty but low priority.**
 
-```python
+```{code-cell} ipython3
 # Define halves or quantiles as your policy prefers
 q_score_hi = rank["score"].quantile(0.75)  # top quartile by priority
 q_score_lo = rank["score"].quantile(0.25)  # bottom quartile
@@ -103,7 +103,7 @@ out if out else "Cannot compute outliers (poverty column missing)."
 
 **(Optional) This cell shows a small scatter of score vs. poverty for a quick visual check.**
 
-```python
+```{code-cell} ipython3
 import matplotlib.pyplot as plt
 
 if pov_col:
@@ -119,7 +119,7 @@ else:
 
 **(Optional) This cell saves a compact extract for slides (top-10 by score with poverty & food fields).**
 
-```python
+```{code-cell} ipython3
 keep_cols = ["NAM_1","NAM_2","score"]
 if pov_col:  keep_cols.append(pov_col)
 if food_col: keep_cols.append(food_col)

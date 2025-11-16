@@ -28,14 +28,26 @@ from __future__ import annotations
 from typing import Tuple
 import numpy as np
 import xarray as xr
+from rasterio.enums import Resampling
 
-from config import PRIORITY_TIF, PRIORITY_TOP10_TIF, PATHS, PARAMS, out_r, get_logger
+from config import PRIORITY_TIF_V1, PRIORITY_TOP10_TIF_V1, PATHS, PARAMS, out_r, get_logger
 from utils_geo import (
     open_template, normalize_linear, percentile_cap, 
-    write_gtiff_masked
+    write_gtiff_masked, apply_aoi_mask_if_enabled,
+    select_top_mask_nan as select_top,
 )
 
 log = get_logger(__name__)
+
+
+def _geo_like(da: xr.DataArray, ref: xr.DataArray) -> xr.DataArray:
+    da2 = da.assign_coords({ref.rio.y_dim: ref[ref.rio.y_dim], ref.rio.x_dim: ref[ref.rio.x_dim]}).transpose(*ref.dims)
+    try:
+        da2.rio.write_crs(ref.rio.crs, inplace=True)
+        da2.rio.write_transform(ref.rio.transform(), inplace=True)
+    except Exception:
+        pass
+    return da2
 
 
 def _clamp_travel(da: xr.DataArray, maxv: float = 240) -> xr.DataArray:
@@ -49,15 +61,45 @@ def _assert_same_shape(*das: xr.DataArray) -> None:
     assert len(shapes) == 1, f"Rasters must share identical shape; got {shapes}"
 
 
+def _coerce_like(da: xr.DataArray, ref: xr.DataArray, *, resamp: Resampling = Resampling.bilinear) -> xr.DataArray:
+    """Put `da` on exactly the same grid as `ref` (CRS, transform, coords, dims)."""
+    # If da has no CRS but already same shape: borrow from ref
+    if getattr(da.rio, "crs", None) is None:
+        if da.shape == ref.shape:
+            da = da.rio.write_crs(ref.rio.crs, inplace=False)
+            da = da.rio.write_transform(ref.rio.transform(), inplace=False)
+        else:
+            # Needs a real reprojection, but we can’t without a source CRS
+            raise ValueError("Input raster missing CRS and shape differs from target; cannot coerce.")
+
+    # If grid differs, reproject to match target grid exactly
+    try:
+        if (da.rio.crs != ref.rio.crs) or (da.rio.transform() != ref.rio.transform()) or (da.shape != ref.shape):
+            da = da.rio.reproject_match(ref, resampling=resamp)
+    except Exception:
+        # Fall back to reproject_match if transform comparison is finicky
+        da = da.rio.reproject_match(ref, resampling=resamp)
+
+    # Force identical coords/dims to prevent future alignment
+    da = da.assign_coords({ref.rio.y_dim: ref[ref.rio.y_dim], ref.rio.x_dim: ref[ref.rio.x_dim]}).transpose(*ref.dims)
+    try:
+        da.rio.write_crs(ref.rio.crs, inplace=True)
+        da.rio.write_transform(ref.rio.transform(), inplace=True)
+    except Exception:
+        pass
+    return da
+
+
 def main() -> None:
     # -------------------------------------------------------------------------
     # Load rasters on the target grid
     # -------------------------------------------------------------------------
     T   = open_template(PATHS.TRAVEL)
-    pop = open_template(out_r("pop_1km"))
-    ntl = open_template(out_r("ntl_1km"))
-    veg = open_template(out_r("veg_1km"))
-    drt = open_template(out_r("drought_1km"))
+
+    pop = _coerce_like(open_template(out_r("pop_1km")),     T, resamp=Resampling.bilinear)
+    ntl = _coerce_like(open_template(out_r("ntl_1km")),     T, resamp=Resampling.bilinear)
+    veg = _coerce_like(open_template(out_r("veg_1km")),     T, resamp=Resampling.bilinear)
+    drt = _coerce_like(open_template(out_r("drought_1km")), T, resamp=Resampling.bilinear)
 
     _assert_same_shape(T, pop, ntl, veg, drt)
 
@@ -103,18 +145,26 @@ def main() -> None:
         PARAMS.W_NTL * ntl_s +
         PARAMS.W_DRT * drt_pen
     )
-    write_gtiff_masked(priority, PRIORITY_TIF, like=T, nodata=np.nan)
-    log.info(f"Wrote {PRIORITY_TIF.name}")
+    # Mask at sink (policy-aware) to ensure NaN outside AOI
+    priority = _geo_like(priority, T)
+    priority = apply_aoi_mask_if_enabled(priority, T)  # central policy
+    write_gtiff_masked(priority, PRIORITY_TIF_V1, like=T, nodata=np.nan)
+    log.info(f"Wrote {PRIORITY_TIF_V1.name}")
 
-    thr = float(np.nanpercentile(priority.values, 90))
-    top10 = xr.where(priority >= thr, 1, 0)
-    write_gtiff_masked(top10, PRIORITY_TOP10_TIF, like=T, nodata=np.nan)
+    # Top 10% selection with NaN outside AOI
+    top10 = select_top(priority, T, top_pct=0.10)      # float32 with NaN outside
+    write_gtiff_masked(top10, PRIORITY_TOP10_TIF_V1, like=T, nodata=np.nan)
 
     # Quick summary: share of valid cells flagged as top decile
     total = int(np.isfinite(priority.values).sum())
-    flagged = int(np.nansum(top10.values == 1))
+
+    # top10 is a float mask with NaN outside AOI; treat values == 1 as selected
+    flagged = int(np.nansum((top10.values == 1).astype(np.int64)))
+
+    thr = float(np.nanpercentile(priority.values, 90))
     pct = 100.0 * flagged / total if total else np.nan
-    log.info(f"Wrote {PRIORITY_TOP10_TIF.name} | P90={thr:.3f} | top10 cells: {flagged}/{total} ({pct:.1f}%)")
+
+    log.info(f"Wrote {PRIORITY_TOP10_TIF_V1.name} | P90={thr:.3f} | top10 cells: {flagged}/{total} ({pct:.1f}%)")
 
     log.info("Step 03 complete.")
 

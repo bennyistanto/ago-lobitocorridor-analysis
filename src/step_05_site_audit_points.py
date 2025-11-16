@@ -22,6 +22,10 @@ Notes
 - 5 km neighborhood = circular kernel radius of 5 cells (1 cell ≈ 1 km).
 - cropland_km2_5km is area-true (fractional cropland × cell_area).
 - electrified_share_5km is a cell-based share (# electrified cells / kernel cells).
+- Added standard coordinate columns required by validator:
+  * lon/lat  = site coordinates in EPSG:4326
+  * x/y      = site coordinates in raster CRS (same as PATHS.TRAVEL)
+  * row/col  = raster indices sampled
 """
 
 from __future__ import annotations
@@ -80,11 +84,15 @@ def main() -> None:
     # Load sites and prep neighborhood stats (5 km radius ≈ 5 cells)
     # ---------------------------------------------------------------------
     try:
-        sites = gpd.read_file(PATHS.SITES).to_crs(T.rio.crs)
+        sites_xy  = gpd.read_file(PATHS.SITES).to_crs(T.rio.crs)     # raster CRS
+        sites_ll  = gpd.read_file(PATHS.SITES).to_crs(4326)          # WGS84 lon/lat
     except Exception as e:
         raise RuntimeError(f"Failed to read sites from {PATHS.SITES}") from e
 
-    n_sites = len(sites)
+    if len(sites_xy) != len(sites_ll):
+        raise RuntimeError("Sites length mismatch after CRS transforms (unexpected).")
+
+    n_sites = len(sites_xy)
     log.info(f"Loaded {n_sites} site(s) from {PATHS.SITES.name}")
 
     radius = SITE_AUDIT_RADIUS_CELLS
@@ -104,21 +112,27 @@ def main() -> None:
     rows: list[Dict[str, Any]] = []
     skipped = 0
 
-    for idx, rec in sites.iterrows():
-        pt = rec.geometry
-        if pt.is_empty or pt.geom_type != "Point":
+    for idx, rec in sites_xy.iterrows():
+        pt_xy = rec.geometry
+        if pt_xy.is_empty or pt_xy.geom_type != "Point":
             skipped += 1
             continue
 
-        # Get raster row/col for this point
-        r, c = rowcol(T.rio.transform(), pt.x, pt.y)
+        # WGS84 counterpart (same index)
+        try:
+            pt_ll = sites_ll.at[idx, "geometry"]
+        except Exception:
+            pt_ll = None
+
+        # Raster indices
+        r, c = rowcol(T.rio.transform(), pt_xy.x, pt_xy.y)
 
         # Guard: point outside the grid
         if r < 0 or c < 0 or r >= T.rio.height or c >= T.rio.width:
             skipped += 1
             continue
 
-        # Sample all layers via row/col (fast, avoids .rio.sample dependency)
+        # Sample all layers via row/col (fast)
         tt = float(T.values[r, c])      # travel (minutes)
         vv = float(veg.values[r, c])    # vegetation index
         nn = float(ntl.values[r, c])    # night lights
@@ -128,23 +142,30 @@ def main() -> None:
         sid = None
         if SITE_ID_FIELD:
             try:
-                # GeoPandas row behaves like a dict/Series
                 sid = rec.get(SITE_ID_FIELD, None)
             except Exception:
                 sid = rec[SITE_ID_FIELD] if (SITE_ID_FIELD in rec) else None
-
-        # If missing/blank → use row index for a stable ID
         if sid is None or (isinstance(sid, str) and not sid.strip()):
             site_id_value = idx
         else:
-            # Cast to int when it is numeric; otherwise keep as string
             try:
                 site_id_value = int(sid)
             except Exception:
                 site_id_value = str(sid)
 
-        rows.append({
+        # Build output row with standard coordinate columns
+        row: Dict[str, Any] = {
             "site_id": site_id_value,
+            # standard XY in raster CRS
+            "x": float(pt_xy.x),
+            "y": float(pt_xy.y),
+            # standard lon/lat in EPSG:4326 (if available)
+            "lon": float(pt_ll.x) if pt_ll is not None else np.nan,
+            "lat": float(pt_ll.y) if pt_ll is not None else np.nan,
+            # sampled cell address
+            "row": int(r),
+            "col": int(c),
+
             "travel_min": tt,
             "veg_index": vv,
             "ntl": nn,
@@ -157,8 +178,9 @@ def main() -> None:
             "electrified_share_5km": (float(elg_nei[r, c]) / ker_cells) if ker_cells > 0 else np.nan,
             # Quick proximity flag to main road (1 km cell)
             "near_road_flag": int(np.nan_to_num(roads.values[r, c], nan=0)),
-        })
+        }
 
+        rows.append(row)
 
     # ---------------------------------------------------------------------
     # Save
@@ -173,7 +195,7 @@ def main() -> None:
             "Quick peek (first 2 sites in raster CRS):"
         )
         try:
-            preview = sites.head(2)[["geometry"]].to_crs(T.rio.crs)
+            preview = sites_xy.head(2)[["geometry"]]
             for i, rec in preview.iterrows():
                 g = rec.geometry
                 if g and g.geom_type == "Point":

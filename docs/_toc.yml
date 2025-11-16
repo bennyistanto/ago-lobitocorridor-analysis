@@ -6,6 +6,8 @@ root: docs/index
 parts:
   - caption: Decision views
     chapters:
+      - file: docs/chapters/00-corridor-story
+        title: Corridor story & key findings
       - file: docs/chapters/01-decide-first
         title: If we could only start in three places…
       - file: docs/chapters/02-muni-shortlist

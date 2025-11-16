@@ -49,7 +49,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 import pandas as pd
 import geopandas as gpd
-from rasterio.transform import rowcol
+from rasterio.features import rasterize
 
 from time import perf_counter
 
@@ -73,44 +73,28 @@ log = get_logger(__name__)
 
 def _read_theme_layers(theme: str) -> gpd.GeoDataFrame:
     """
-    Read and concat all admin2 shapefiles for a theme across provinces in PATHS.MUNI_DIR.
-    Returns a GeoDataFrame with standardized columns and value fields still named 'dataN'.
+    Read the AOI-specific admin2 shapefile for a theme.
+    Returns a GeoDataFrame with standardized columns; value fields still named 'dataN'.
     """
-    files = []
-    patterns = muni_glob_for_theme(theme)
-    for pat in patterns:
-        files.extend(sorted(PATHS.MUNI_DIR.rglob(pat)))  # recursive
+    from config import muni_first_existing_path_for, AOI, PATHS
 
-    if not files:
+    shp = muni_first_existing_path_for(AOI, theme)
+    if shp is None or not Path(shp).exists():
         if MUNI_SKIP_MISSING:
-            log.info("Skipping theme=%s: no files matched under %s.", theme, PATHS.MUNI_DIR)
-        else:
-            sample = [p.name for p in list(PATHS.MUNI_DIR.rglob("*.shp"))[:8]]
-            log.warning(
-                "No admin2 files found for theme=%s under %s. Tried patterns=%s. "
-                "Example .shp files here: %s",
-                theme, PATHS.MUNI_DIR, patterns, (sample or ["<none>"])
-            )
+            log.info("Skipping theme=%s: no AOI file found in %s.", theme, PATHS.MUNI_DIR)
+            return gpd.GeoDataFrame(columns=["geometry"])
+        log.warning("Theme=%s: AOI file not found (looked in %s).", theme, PATHS.MUNI_DIR)
         return gpd.GeoDataFrame(columns=["geometry"])
 
-    gdfs = []
-    for fp in files:
-        try:
-            gdf = gpd.read_file(fp)
-            gdfs.append(gdf)
-        except Exception as e:
-            log.warning(f"Failed reading {fp}: {e}")
-    if not gdfs:
+    try:
+        gdf = gpd.read_file(shp)
+    except Exception as e:
+        log.warning("Failed reading %s: %s", shp, e)
         return gpd.GeoDataFrame(columns=["geometry"])
 
-    gdf = pd.concat(gdfs, ignore_index=True)
-    # Basic sanity fields
-    keep = ["NAM_1", "NAM_2", "ADM2CD_c"]
-    missing = [c for c in keep if c not in gdf.columns]
-    if missing:
-        log.warning(f"Theme={theme}: missing expected columns {missing}; will try to continue.")
+    # Ensure key fields exist (fallback to NAM_2 for code if needed)
     if "ADM2CD_c" not in gdf.columns:
-        gdf["ADM2CD_c"] = gdf.get("NAM_2", pd.Series([None]*len(gdf)))
+        gdf["ADM2CD_c"] = gdf.get("NAM_2", pd.Series([None] * len(gdf)))
     return gdf
 
 
@@ -146,13 +130,23 @@ def _normalize_values(df: pd.DataFrame, theme: str) -> pd.DataFrame:
     if theme == "traveltime":
         for c in var_cols:
             df[c] = pd.to_numeric(df[c], errors="coerce") * 60.0
+        log.info("Converted traveltime theme hours→minutes for %s (columns: %s)", theme, ", ".join(var_cols))
         return df
-
+    
     # Percent → 0..1
     if RAPP_PCT_IS_0_100:
         for c in var_cols:
             df[c] = pd.to_numeric(df[c], errors="coerce") / 100.0
     return df
+
+
+def _theme_var_cols(df: pd.DataFrame, theme: str) -> List[str]:
+    """
+    Return the friendly variable columns for `theme` that actually exist in df.
+    """
+    var_map = THEME_VARS.get(theme, {})
+    wanted = list(var_map.values())  # friendly names
+    return [c for c in wanted if c in df.columns]
 
 
 def _wide_table(all_themes_gdf: gpd.GeoDataFrame) -> pd.DataFrame:
@@ -162,7 +156,10 @@ def _wide_table(all_themes_gdf: gpd.GeoDataFrame) -> pd.DataFrame:
     if all_themes_gdf.empty:
         return pd.DataFrame(columns=["ADM2CD_c", "NAM_2", "NAM_1"])
 
-    df = pd.DataFrame(all_themes_gdf.drop(columns="geometry"))
+    # Don't assume a geometry column exists (gdf_all_tables has none)
+    df = pd.DataFrame(all_themes_gdf.copy())
+    if "geometry" in df.columns:
+        df = df.drop(columns=["geometry"])
     if "ADM2CD_c" not in df.columns:
         df["ADM2CD_c"] = df.get("NAM_2", pd.Series([None]*len(df)))
 
@@ -180,9 +177,6 @@ def _wide_table(all_themes_gdf: gpd.GeoDataFrame) -> pd.DataFrame:
     for sub in parts:
         out = sub if out is None else out.merge(sub, on=["ADM2CD_c", "NAM_2", "NAM_1"], how="outer")
 
-    # --- NEW: enforce single row per ADM2 and drop all-empty columns ---
-    out = out.groupby(["ADM2CD_c", "NAM_1", "NAM_2"], as_index=False).mean(numeric_only=True)
-    out = out.dropna(axis=1, how="all")
     return out
 
 
@@ -236,9 +230,8 @@ def _corr_vs_poverty(wide: pd.DataFrame) -> pd.DataFrame:
 
 def _rasterize_selected_vars(gdf_all: gpd.GeoDataFrame, T) -> List[Path]:
     """
-    Fast attribute-to-grid rasterization using polygon centroids snapped to the 1-km grid.
-    For admin2 polygons this approximates zonal means well and avoids heavy per-polygon raster ops.
-
+    Polygon-burn rasterization: for each (theme, variable), burn a constant value per Admin2 polygon
+    onto the 1-km template grid. Outside AOI is written as NaN via write_gtiff_masked().
     Returns list of written file paths.
     """
     written: List[Path] = []
@@ -246,74 +239,79 @@ def _rasterize_selected_vars(gdf_all: gpd.GeoDataFrame, T) -> List[Path]:
         log.warning("No geometries available; skipping rasterization.")
         return written
 
-    # Reproject to match template grid CRS
+    # Align CRS to the template
     try:
         if gdf_all.crs is not None and T.rio.crs is not None and gdf_all.crs != T.rio.crs:
             gdf_all = gdf_all.to_crs(T.rio.crs)
     except Exception as e:
         log.warning("Failed to align CRS for rasterization: %s", e)
 
-    # The variables to attempt (essentials + FEATURED_VARS)
-    essentials = [
-        ("poverty", "poverty_rural"),
-        ("foodinsecurity", "food_insec_scale"),
-        ("traveltime", "avg_hours_to_market_financial"),
-    ]
-    targets = list(dict.fromkeys(essentials + list(FEATURED_VARS)))  # unique, ordered
+    # Determine which themes we actually ingested
+    themes_present = sorted(set(gdf_all["theme"])) if "theme" in gdf_all.columns else []
 
-    # Pregrab coords for fast indexing
-    ny, nx = T.sizes["y"], T.sizes["x"]
-
-    for theme, var in targets:
-        theme, var = str(theme), str(var)
-        themed = gdf_all[gdf_all["theme"] == theme].copy()
-        if themed.empty:
-            log.info("Skip rasterize: theme=%s var=%s (missing theme rows)", theme, var)
+    # Rasterize all variables that exist for each theme
+    for theme in themes_present:
+        sub = gdf_all[gdf_all["theme"] == theme].copy()
+        if sub.empty:
             continue
 
-        # Candidate column name: prefer "<theme>__<var>" else raw "var"
-        col = f"{theme}__{var}" if f"{theme}__{var}" in themed.columns else var
-        if col not in themed.columns:
-            log.info("Skip rasterize: theme=%s var=%s (column not found)", theme, var)
+        # Pick only the friendly variable columns that are present
+        vars_here = _theme_var_cols(sub, theme)
+        if not vars_here:
+            log.info("Theme=%s: no mapped variables present; skipping burn.", theme)
             continue
 
-        # Clean rows
-        themed = themed[~themed.geometry.is_empty & themed.geometry.notna()].copy()
-        themed[col] = pd.to_numeric(themed[col], errors="coerce")
-        themed = themed[~themed[col].isna()].copy()
-        if themed.empty:
-            log.info("Skip rasterize: theme=%s var=%s (no valid values after cleaning)", theme, var)
+        # Clean geometry rows
+        sub = sub[~sub.geometry.is_empty & sub.geometry.notna()].copy()
+        if sub.empty:
+            log.info("Theme=%s: empty geometry after cleaning; skipping.", theme)
             continue
 
-        # Snap feature centroids to grid using the affine transform (handles descending y)
-        cent = themed.geometry.centroid
-        rows, cols = rowcol(T.rio.transform(), cent.x.values, cent.y.values)
-        rows = np.clip(rows, 0, ny - 1)
-        cols = np.clip(cols, 0, nx - 1)
+        # For reproducibility, ensure we have exactly one row per ADM2 with numeric values
+        # (If multiple rows exist per ADM2, we take mean per variable—same as tables.)
+        keys = ["ADM2CD_c", "NAM_1", "NAM_2", "geometry"]
+        numcols = [c for c in vars_here]
+        for c in numcols:
+            sub[c] = pd.to_numeric(sub[c], errors="coerce")
 
-        acc_sum = np.zeros((ny, nx), dtype="float64")
-        acc_cnt = np.zeros((ny, nx), dtype="float64")
-        vals = themed[col].values
+        grp = (
+            sub
+            .dropna(subset=["ADM2CD_c"])
+            .groupby(keys, as_index=False)[numcols]
+            .mean()
+        )
 
-        for r, c, v in zip(rows, cols, vals):
-            if np.isfinite(v):
-                acc_sum[r, c] += float(v)
-                acc_cnt[r, c] += 1.0
+        # For each variable, burn constant value per polygon
+        out_shape = (T.sizes["y"], T.sizes["x"])
+        tf = T.rio.transform()
 
-        with np.errstate(invalid="ignore", divide="ignore"):
-            arr = acc_sum / acc_cnt
-            arr[acc_cnt == 0] = np.nan
+        for var in vars_here:
+            # Build shapes list excluding NaN values
+            shapes = [(geom, float(val)) for geom, val in zip(grp.geometry, grp[var]) if np.isfinite(val)]
+            if not shapes:
+                log.info("Skip rasterize: theme=%s var=%s (no finite values).", theme, var)
+                continue
 
-        R = T.copy(deep=False)
-        R = R.where(False, np.nan)
-        R.values[:] = arr
+            arr = rasterize(
+                shapes=shapes,
+                out_shape=out_shape,
+                transform=tf,
+                fill=np.nan,
+                all_touched=False,        # conservative; avoids halo/speckle
+                dtype="float32",
+            )
 
-        # IMPORTANT: out_r returns a full '.tif' path; write_gtiff_masked writes to that path.
-        out_path = out_r(f"muni_{theme}_{var}_1km")
-        write_gtiff_masked(R, out_path, like=T, nodata=np.nan)
-        written.append(out_path)
-        log.info("Wrote %s", out_path.name)
+            R = T.copy(deep=False)
+            R = R.where(False, np.nan)
+            R.values[:] = arr
 
+            out_path = out_r(f"muni_{theme}_{var}_1km")
+            write_gtiff_masked(R, out_path, like=T, nodata=np.nan)
+            written.append(out_path)
+            # quick stats for sanity
+            vmin = float(np.nanmin(arr)) if np.isfinite(arr).any() else np.nan
+            vmax = float(np.nanmax(arr)) if np.isfinite(arr).any() else np.nan
+            log.info("Wrote %s | min=%.4f max=%.4f", out_path.name, vmin, vmax)
 
     return written
 
@@ -463,6 +461,19 @@ def main() -> None:
     else:
         written = _rasterize_selected_vars(gdf_all, T)
     log.info("Rasterized %d muni variables to 1-km grid", len(written))
+
+    # --- sanity: ensure key overlays exist for downstream (Step 07/10) ---
+    must_have = [
+        out_r("muni_poverty_poverty_rural_1km"),
+        out_r("muni_foodinsecurity_food_insec_scale_1km"),
+        out_r("muni_traveltime_avg_hours_to_market_financial_1km"),
+    ]
+    for p in must_have:
+        if not Path(p).exists():
+            log.warning("Expected overlay missing → %s (check THEME_VARS mapping & rasterization)", Path(p).name)
+        else:
+            log.info("Overlay ready: %s", Path(p).name)
+
 
     log.info("Step 06 complete.")
 

@@ -25,10 +25,12 @@ Measure simple, decision-friendly synergies: **nearest distance** to other proje
 
 ## Outputs
 
-* `outputs/tables/{AOI}_synergy_sites.csv`
-  *(e.g., columns: site\_id, dist\_gov\_km, dist\_wb\_km, dist\_oth\_km, n5\_gov, n5\_wb, n5\_oth, n10\_*, n30\_\* …)\*
-* `outputs/tables/{AOI}_synergy_clusters.csv`
-  *(e.g., columns: cluster\_id, NAM\_2, dist\_gov\_km, …, n30\_oth …)*
+* `outputs/tables/{AOI}_site_synergies.csv`  
+  *(columns: site_id, lon, lat, dist_km_nearest_gov, dist_km_nearest_wb, dist_km_nearest_oth, and for each radius r in SYNERGY_RADII_KM: count_gov_le{r}km, count_wb_le{r}km, count_oth_le{r}km)*
+
+* `outputs/tables/{AOI}_cluster_synergies.csv`  
+  *(columns: cluster_id, lon, lat, dist_km_nearest_gov, dist_km_nearest_wb, dist_km_nearest_oth, plus the same count_gov_le{r}km / count_wb_le{r}km / count_oth_le{r}km fields)*
+
 
 ## How to run (analyst)
 
@@ -36,7 +38,7 @@ Run **Step 13** once. This chapter only **loads** saved outputs (no recomputatio
 
 **This cell loads the site-level and cluster-level synergy tables for the current AOI.**
 
-```python
+```{code-cell} ipython3
 import os
 import pandas as pd
 from pathlib import Path
@@ -45,8 +47,8 @@ ROOT = Path(os.getenv("PROJECT_ROOT", "."))
 AOI  = os.getenv("AOI", "moxico")
 OUT_T = ROOT / "outputs" / "tables"
 
-syn_sites    = pd.read_csv(OUT_T / f"{AOI}_synergy_sites.csv")
-syn_clusters = pd.read_csv(OUT_T / f"{AOI}_synergy_clusters.csv")
+syn_sites    = pd.read_csv(OUT_T / f"{AOI}_site_synergies.csv")
+syn_clusters = pd.read_csv(OUT_T / f"{AOI}_cluster_synergies.csv")
 syn_sites.head(10), syn_clusters.head(10)
 ```
 
@@ -54,19 +56,20 @@ syn_sites.head(10), syn_clusters.head(10)
 
 **This cell lists Top-10 sites with the **closest** World Bank project (coordination quick wins).**
 
-```python
-cols_needed = {"site_id","dist_wb_km"}
+```{code-cell} ipython3
+cols_needed = {"site_id","dist_km_nearest_wb"}
 if cols_needed.issubset(syn_sites.columns):
-    top_close_wb = syn_sites.sort_values("dist_wb_km").head(10)[["site_id","dist_wb_km"]]
+    top_close_wb = syn_sites.sort_values("dist_km_nearest_wb").head(10)[["site_id","dist_km_nearest_wb"]]
     top_close_wb
 else:
-    print("Expected columns missing in syn_sites (need site_id, dist_wb_km).")
+    print("Expected columns missing in syn_sites (need site_id, dist_km_nearest_wb).")
 ```
 
 **This cell lists Top-10 clusters with the **largest number of projects within 10 km** (all partners).**
 
-```python
-cand_cols = [c for c in syn_clusters.columns if c.startswith("n10_")]
+```{code-cell} ipython3
+cand_cols = [c for c in syn_clusters.columns
+             if c.startswith("count_") and c.endswith("le10km")]
 if "cluster_id" in syn_clusters.columns and cand_cols:
     syn_clusters["n10_total"] = syn_clusters[cand_cols].sum(axis=1)
     top_cov = (syn_clusters
@@ -74,23 +77,27 @@ if "cluster_id" in syn_clusters.columns and cand_cols:
                .head(10)[["cluster_id","NAM_2","n10_total"] + cand_cols])
     top_cov
 else:
-    print("Expected columns missing in syn_clusters (need cluster_id, n10_*).")
+    print("Expected columns missing in syn_clusters (need cluster_id and count_*_le10km).")
 ```
 
 **This cell flags sites with **zero projects within 30 km** (islands to treat with caution or to seed first).**
 
-```python
-c30 = [c for c in syn_sites.columns if c.startswith("n30_")]
+```{code-cell} ipython3
+c30 = [c for c in syn_sites.columns
+       if c.startswith("count_") and c.endswith("le30km")]
 if c30:
     islands = syn_sites.loc[syn_sites[c30].sum(axis=1) == 0, ["site_id"] + c30]
     islands.head(20)
 else:
-    print("No n30_* columns found in syn_sites.")
+    print("No count_*_le30km columns found in syn_sites.")
 ```
 
 **This cell ranks municipalities by **density of nearby projects** around clusters (who can coordinate most).**
 
-```python
+```{code-cell} ipython3
+cand_cols = [c for c in syn_clusters.columns
+             if c.startswith("count_") and c.endswith("le10km")]
+
 if {"NAM_2","cluster_id"}.issubset(syn_clusters.columns) and cand_cols:
     muni_proj = (syn_clusters
                  .assign(n10_total=lambda d: d[cand_cols].sum(axis=1))
@@ -100,16 +107,16 @@ if {"NAM_2","cluster_id"}.issubset(syn_clusters.columns) and cand_cols:
                  .sort_values(["n10_total","clusters"], ascending=[False, False]))
     muni_proj.head(10)
 else:
-    print("NAM_2 or cluster_id missing in syn_clusters.")
+    print("NAM_2 or cluster_id missing, or no count_*_le10km columns in syn_clusters.")
 ```
 
-*(Optional tiny chart—safe to skip if you want a text-only book.)*
 **This cell draws a quick bar of Top-8 sites by “projects within 10 km (all partners)”.**
 
-```python
+```{code-cell} ipython3
 import matplotlib.pyplot as plt
 
-c10 = [c for c in syn_sites.columns if c.startswith("n10_")]
+c10 = [c for c in syn_sites.columns
+       if c.startswith("count_") and c.endswith("le10km")]
 if c10:
     syn_sites["n10_total"] = syn_sites[c10].sum(axis=1)
     t8 = syn_sites.nlargest(8, "n10_total")
@@ -119,6 +126,8 @@ if c10:
     plt.xlabel("Projects within 10 km (Gov + WB + Other)")
     plt.title(f"{AOI}: Sites with strongest coordination potential")
     plt.show()
+else:
+    print("No count_*_le10km columns found in syn_sites.")
 ```
 
 ## How to read the results (interpretation)
@@ -136,5 +145,5 @@ if c10:
 
 ### Download
 
-* Synergy **sites** → `outputs/tables/{AOI}_synergy_sites.csv`
-* Synergy **clusters** → `outputs/tables/{AOI}_synergy_clusters.csv`
+* Synergy **sites** → `outputs/tables/{AOI}_site_synergies.csv`
+* Synergy **clusters** → `outputs/tables/{AOI}_cluster_synergies.csv`

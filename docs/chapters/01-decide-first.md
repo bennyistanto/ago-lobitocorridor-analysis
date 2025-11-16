@@ -20,7 +20,7 @@ Use a transparent **priority surface** (access + people + production + simple ri
 ## Methods (brief)
 
 - **Step 07 / 10**: build priority score (0–1), apply masks & thresholds, select **Top-X** (% or km²).  
-- **Step 11**: label **clusters** (8-neigh), prune small areas; compute KPIs (area, pop, cropland km², % electrified, mean travel time, drought); tag dominant municipality.  
+- **Step 11**: label **clusters inside the Top-X mask** (8-neigh), prune small areas; compute KPIs (area, pop, cropland km², % electrified, mean travel time, drought); tag dominant municipality.  
 - **Step 12** (optional context): site catchments (≤30/60/120 min) from a friction surface.
 
 ## Outputs
@@ -35,7 +35,7 @@ Run: **07 → 10 (optional scenarios) → 11 (clusters)** once. This chapter onl
 
 **This cell loads the cluster KPIs table from `/outputs` for the current AOI (no recomputation).**
 
-```python
+```{code-cell} ipython3
 import os
 import pandas as pd
 from pathlib import Path

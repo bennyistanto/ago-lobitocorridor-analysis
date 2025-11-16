@@ -26,23 +26,24 @@ None—reference page only.
 
 ## Step crosswalk (scripts → outputs)
 
-| Step | Script (src/)                                   | What it does                                                                | Key outputs (outputs/)                                                                                                                                                                                                                                                                                                  |
-| ---- | ----------------------------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 00   | `step_00_align_and_rasterize.py`                | Aligns rasters to 1-km grid; rasterizes vectors; aggregates flood 30 m→1 km | `rasters/{AOI}_pop_1km.tif`, `{AOI}_ntl_1km.tif`, `{AOI}_veg_1km.tif`, `{AOI}_drought_1km.tif`, `{AOI}_cropland_presence_1km.tif`, `{AOI}_cropland_fraction_1km.tif`, `{AOI}_elec_grid_1km.tif`, `{AOI}_elec_unelectrified_1km.tif`, `{AOI}_urban_1km.tif`, `{AOI}_rural_1km.tif`, `{AOI}_flood_rp100_maxdepth_1km.tif` |
-| 01   | `step_01_isochrones.py`                         | Builds AOI-wide 30/60/120-min masks                                         | `rasters/{AOI}_iso_30min.tif`, `…60…`, `…120…`                                                                                                                                                                                                                                                                          |
-| 02   | `step_02_kpis_population_cropland_electric.py`  | Zonal stats for isochrones and basics                                       | `tables/{AOI}_isochrones_kpis.csv`                                                                                                                                                                                                                                                                                      |
-| 03   | `step_03_priority_surface.py`                   | (Legacy) baseline priority surface                                          | `rasters/{AOI}_priority_legacy.tif` (optional)                                                                                                                                                                                                                                                                          |
-| 04   | `step_04_flood_bottlenecks_from_road_raster.py` | Simple flood bottleneck screen (priority × flood)                           | `rasters/{AOI}_priority_flood_screen_1km.tif`                                                                                                                                                                                                                                                                           |
-| 05   | `step_05_site_audit_points.py`                  | Samples rasters at project sites + 3×3 ring stats                           | `tables/{AOI}_site_audit_13_points.csv`                                                                                                                                                                                                                                                                                 |
-| 06   | `step_06_muni_ingest.py`                        | Ingests Admin2 RAPP shapefiles (themes)                                     | `tables/{AOI}_admin2_themes_catalog.csv`                                                                                                                                                                                                                                                                                |
-| 07   | `step_07_priority_tunable.py`                   | Priority score (tunable) + muni rank                                        | `tables/{AOI}_priority_muni_rank.csv`, `rasters/{AOI}_priority_score_1km.tif`                                                                                                                                                                                                                                           |
-| 08   | `step_08_project_kpis.py`                       | Site KPls near priority & access                                            | `tables/{AOI}_project_kpis.csv`                                                                                                                                                                                                                                                                                         |
-| 09   | `step_09_scenario_sweep.py`                     | Runs named parameter bundles                                                | scenario-wise tables in `tables/…`                                                                                                                                                                                                                                                                                      |
-| 10   | `step_10_priority_scenarios.py`                 | Consolidates scenarios                                                      | `tables/{AOI}_priority_scenarios_summary.csv`                                                                                                                                                                                                                                                                           |
-| 11   | `step_11_priority_clusters.py`                  | Labels Top-X, prunes, computes cluster KPIs                                 | `rasters/{AOI}_priority_top10_mask.tif` (or km² name), `rasters/{AOI}_priority_clusters_1km.tif`, `tables/{AOI}_priority_clusters.csv`                                                                                                                                                                                  |
-| 12   | `step_12_catchments.py`                         | Catchments per site (≤30/60/120 min)                                        | `tables/{AOI}_catchments_kpis.csv`                                                                                                                                                                                                                                                                                      |
-| 13   | `step_13_synergies.py`                          | Proximity to Gov/WB/Other projects                                          | `tables/{AOI}_synergy_sites.csv`, `tables/{AOI}_synergy_clusters.csv`                                                                                                                                                                                                                                                   |
-| 14   | `step_14_od_lite.py`                            | Admin2 gravity flows + agent samples                                        | `tables/{AOI}_od_flows.csv`, `tables/{AOI}_od_agents_sample.csv`                                                                                                                                                                                                                                                        |
+| Step | Script (src/) | What it does | Key outputs (outputs/) |
+| ---- | ---- | ----- | ----- |
+| 00   | `step_00_align_and_rasterize.py` | Aligns rasters to 1-km grid; rasterizes vectors; aggregates flood 30 m→1 km | `rasters/{AOI}_pop_1km.tif`, `{AOI}_ntl_1km.tif`, `{AOI}_veg_1km.tif`, `{AOI}_drought_1km.tif`, `{AOI}_cropland_presence_1km.tif`, `{AOI}_cropland_fraction_1km.tif`, `{AOI}_elec_grid_1km.tif`, `{AOI}_elec_unelectrified_1km.tif`, `{AOI}_urban_1km.tif`, `{AOI}_rural_1km.tif`, `{AOI}_flood_rp100_maxdepth_1km.tif` |
+| 01   | `step_01_isochrones.py` | Builds AOI-wide 30/60/120-min masks | `rasters/{AOI}_iso_30min.tif`, `…60…`, `…120…` |
+| 02   | `step_02_kpis_population_cropland_electric.py`  | Zonal stats for isochrones and basics  | `tables/{AOI}_isochrones_kpis.csv` |
+| 03   | `step_03_priority_surface.py`  | (Legacy) baseline priority surface  | `rasters/{AOI}_priority_score_v1_0_1.tif` (optional legacy surface) |
+| 04   | `step_04_flood_bottlenecks_from_road_raster.py` | Simple flood bottleneck screen (priority × flood) | `rasters/{AOI}_flood_rp100_exceed_frac_1km.tif` |
+| 05   | `step_05_site_audit_points.py` | Samples rasters at project sites + 3×3 ring stats | `tables/{AOI}_site_audit_points.csv` |
+| 06   | `step_06_muni_ingest.py` | Ingests Admin2 RAPP shapefiles (themes)  | `tables/{AOI}_municipality_indicators.csv`, `{AOI}_corr_with_rural_poverty.csv`, `{AOI}_municipality_profiles.csv` |
+| 07   | `step_07_priority_tunable.py`  | Priority score (tunable) + muni rank  | `tables/{AOI}_priority_admin2_rank.csv`, `{AOI}_priority_muni_rank.csv`, `rasters/{AOI}_priority_score_1km.tif`  |
+| 08   | `step_08_project_kpis.py` | Site KPls near priority & access  | `tables/{AOI}_project_kpis.csv` |
+| 09   | `step_09_muni_targeting.py` | Municipality targeting / composite shortlist | `tables/{AOI}_priority_muni_rank.csv` |
+| 10   | `step_10_priority_scenarios.py` | Consolidates scenarios  | `tables/{AOI}_priority_scenarios_summary.csv` |
+| 11   | `step_11_priority_clusters.py` | Labels Top-X, prunes, computes cluster KPIs  | `rasters/{AOI}_priority_top10_mask.tif` (or km² name), `rasters/{AOI}_priority_clusters_1km.tif`, `tables/{AOI}_priority_clusters.csv` |
+| 12   | `step_12_traveltime_catchments.py` | Catchments per site (≤30/60/120 min)  | `tables/{AOI}_catchments_kpis.csv` |
+| 13   | `step_13_synergies_overlay.py` | Proximity to Gov/WB/Other projects  | `tables/{AOI}_site_synergies.csv`, `tables/{AOI}_cluster_synergies.csv` |
+| 14   | `step_14_lite_od.py` | Admin2 gravity flows + agent samples  | `tables/{AOI}_od_gravity.csv`, `tables/{AOI}_od_zone_attrs.csv`, `tables/{AOI}_od_agents.csv` |
+
 
 > Exact filenames may vary slightly if you selected **Top-km²** instead of **Top-%** in Step 10.
 
@@ -50,12 +51,32 @@ None—reference page only.
 
 ## Parameter glossary (what each knob does)
 
-* **Weights:** `W_POP`, `W_NTL`, `W_VEG`, `W_DRT` — contribution of each normalized layer to the priority score.
-* **Masks:** `MASK_MIN_CROPLAND` (min 0–1 fraction), `MASK_URBAN_EXCLUDE` (bool), `MASK_ELEC_EXISTING` (bool).
-* **Selection:** `TOP_PCT_CELLS` (0–100, percent of cells) **or** `TOP_KM2` (fixed area).
-* **Coherence & smoothing:** `MIN_CLUSTER_CELLS`, `MIN_CLUSTER_KM2`, `GAUSS_SIGMA_CELLS`.
-* **Road class:** `ROAD_CLASS_FILTER` (“ALL”, or list like `["motorway","trunk","primary","secondary"]`) — used where steps consume road-based context.
-* **Admin2 themes:** `ADMIN2_THEMES`, `THEME_VARS` — what socio-economic themes/columns are available.
+* **Weights (priority components):**
+  `W_ACC`, `W_POP`, `W_VEG`, `W_NTL`, `W_DRT` — relative contribution of access, population, vegetation, night lights, and drought (after normalization) to the priority score.
+
+* **Masks:**
+  `MASK_REQUIRE_RURAL` (bool) — keep only cells marked as rural (from `{AOI}_rural_1km.tif`);
+  `MASK_MIN_CROPLAND` (float, 0–1, 0 disables) — minimum cropland fraction required for a cell to be eligible.
+
+* **Selection envelope:**
+  `TOP_PCT_CELLS` (0–1, fraction of valid cells) **or** `TOP_KM2` (fixed area in km²). Only one should be non-`None`.
+
+* **Coherence & smoothing:**
+  `MIN_CLUSTER_CELLS` — minimum cluster size (in pixels) in Step 11; smaller blobs are dropped.
+  `SMOOTH_RADIUS` — focal mean radius in cells (0=no smoothing, 1≈3×3, 2≈5×5) for the priority surface.
+
+* **Synergy / proximity:**
+  `SYNERGY_RADII_KM` — tuple of radii in km (e.g., `(5, 10, 30)`) used in Step 13 for counting nearby projects.
+
+* **Equity overlays (optional, used when rasters exist):**
+  `W_POV`, `W_FOOD`, `W_MTT`, `W_RWI` — weights for poverty, food insecurity, mean travel time, and Relative Wealth Index overlays in the composite score.
+
+* **Roads policy:**
+  `ROAD_CLASSES_KEEP` — `None` means use all OSM road classes; or set to a tuple like `("motorway","trunk","primary","secondary")` to restrict.
+
+* **Admin2 themes (RAPP):**
+  `ADMIN2_THEMES` — tuple of theme names (e.g., `("poverty","foodsec")`) to ingest.
+  `THEME_VARS` — mapping from theme → dict of column codes to friendly names for Step 06.
 
 ---
 
@@ -63,7 +84,7 @@ None—reference page only.
 
 **This cell shows the full `PARAMS` dict as currently loaded (read-only).**
 
-```python
+```{code-cell} ipython3
 import os, sys, pprint
 from pathlib import Path
 
@@ -79,7 +100,7 @@ pp.pprint(PARAMS)
 
 **This cell inventories output tables for the AOI (name, size, mtime).**
 
-```python
+```{code-cell} ipython3
 import time
 from pathlib import Path
 
@@ -94,7 +115,7 @@ rows[:25]  # show first 25
 
 **This cell inventories output rasters for the AOI (name, size, mtime).**
 
-```python
+```{code-cell} ipython3
 OUT_R = ROOT / "outputs" / "rasters"
 rows_r = []
 for p in sorted(OUT_R.glob(f"{AOI}_*.tif")):
@@ -106,7 +127,7 @@ rows_r[:25]
 
 **This cell previews the top rows of the key decision tables (if present).**
 
-```python
+```{code-cell} ipython3
 import pandas as pd
 
 def _preview(path):

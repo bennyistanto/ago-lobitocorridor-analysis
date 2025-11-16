@@ -29,6 +29,9 @@ Notes
 from __future__ import annotations
 from typing import Dict, Any
 from datetime import datetime
+from pathlib import Path
+
+import rioxarray as rxr
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -36,7 +39,7 @@ from scipy.ndimage import maximum_filter
 from rasterio.enums import Resampling
 from config import (
     AOI, PATHS, PARAMS, ROADS1K_TIF, FLOOD1K_TIF,
-    PRIORITY_TOP10_TIF, ROADS_RISK_TIF, ROADS_RISK_NEAR_TIF,
+    PRIORITY_TOP10_TIF_V1, ROADS_RISK_TIF, ROADS_RISK_NEAR_TIF,
     out_r, out_t, get_logger
 )
 from utils_geo import (
@@ -68,13 +71,24 @@ def main() -> None:
     # -------------------------------------------------------------------------
     T = open_template(PATHS.TRAVEL)
     flood1k = open_template(FLOOD1K_TIF)
-    prio10  = open_template(PRIORITY_TOP10_TIF)
+    prio10  = open_template(PRIORITY_TOP10_TIF_V1)
+
+    # Optional: precomputed flood exceedance fraction (0..1) from Step 00
+    flood_frac = None
+    frac_path = out_r("flood_rp100_exceed_frac_1km")
+    if Path(frac_path).exists():
+        flood_frac = rxr.open_rasterio(frac_path, masked=True).squeeze()
 
     # If anything doesn't match T, reproject it on the fly
     fixed = []
     if flood1k.shape != T.shape or flood1k.rio.transform() != T.rio.transform() or flood1k.rio.crs != T.rio.crs:
         flood1k = flood1k.rio.reproject_match(T, resampling=Resampling.max)
         fixed.append("flood1k")
+    
+    if flood_frac is not None:
+        if (flood_frac.shape != T.shape) or (flood_frac.rio.transform() != T.rio.transform()) or (flood_frac.rio.crs != T.rio.crs):
+            flood_frac = flood_frac.rio.reproject_match(T, resampling=Resampling.average)
+            fixed.append("flood_frac")
 
     if prio10.shape != T.shape or prio10.rio.transform() != T.rio.transform() or prio10.rio.crs != T.rio.crs:
         # nearest is appropriate for binary masks
@@ -95,9 +109,13 @@ def main() -> None:
     )
     rc = getattr(PARAMS, "ROAD_CLASSES_KEEP", None)
     rc_pretty = rc if (rc is None) else tuple(rc)
+
+    # define this BEFORE logging
+    roads_all_touched = bool(getattr(PARAMS, "ROADS_ALL_TOUCHED", False))  # default False for stricter counts
+    
     log.info(
         f"Params | FLOOD_DEPTH_RISK={PARAMS.FLOOD_DEPTH_RISK} m | "
-        f"ROAD_CLASSES_KEEP={rc_pretty}"
+        f"ROAD_CLASSES_KEEP={rc_pretty} | ROADS_ALL_TOUCHED={roads_all_touched}"
     )
 
     # -------------------------------------------------------------------------
@@ -121,7 +139,8 @@ def main() -> None:
         where = " or ".join([f"fclass == '{c}'" for c in classes])
         log.info(f"Rasterizing roads where: {where}")
 
-    roads1k = rasterize_vector(PATHS.ROADS, T, where=where, burn_value=1, all_touched=True)
+    roads1k = rasterize_vector(PATHS.ROADS, T, where=where, burn_value=1, all_touched=roads_all_touched)
+
     write_gtiff(roads1k, ROADS1K_TIF, like=T)
 
     road_cells = int(np.nansum(roads1k.values == 1))
@@ -139,7 +158,16 @@ def main() -> None:
     # -------------------------------------------------------------------------
     # Risk cells: road presence AND flood depth >= threshold
     # -------------------------------------------------------------------------
-    risk_cells = ((roads1k == 1) & (flood1k >= PARAMS.FLOOD_DEPTH_RISK)).astype("int16")
+    # Risk cells:
+    # Prefer fraction-based screening if available; otherwise fall back to depth≥threshold.
+    fmin = float(getattr(PARAMS, "FLOOD_EXCEED_FRACTION_MIN", 0.25))  # policy knob; default 25%
+    if flood_frac is not None:
+        method_note = f"fraction≥{fmin:.2f}"
+        risk_cells = ((roads1k == 1) & (flood_frac >= fmin)).astype("int16")
+    else:
+        method_note = f"depth≥{float(PARAMS.FLOOD_DEPTH_RISK)}m (fallback)"
+        risk_cells = ((roads1k == 1) & (flood1k >= PARAMS.FLOOD_DEPTH_RISK)).astype("int16")
+
     write_gtiff_masked(risk_cells, ROADS_RISK_TIF, like=T, nodata=np.nan)
     risk_total = int(np.nansum(risk_cells.values))
     log.info(f"Wrote {ROADS_RISK_TIF.name} | risk_cells={risk_total:,}")
@@ -193,8 +221,12 @@ def main() -> None:
 
         "flood_depth_threshold_m": float(PARAMS.FLOOD_DEPTH_RISK),
         "road_filter_applied": road_filter_applied,
+        "flood_exceed_fraction_min": (fmin if flood_frac is not None else np.nan),
 
-        "notes": "Risk=roads ∩ (RP100 depth≥threshold). Near-priority: within 1 cell of Top10% priority mask; roads rasterized with all_touched."
+        "notes": (
+            "Risk=roads ∩ flood; near-priority=within 1 cell of Top10% priority; "
+            f"method={method_note}; roads_all_touched={roads_all_touched}"
+        )
     }])
 
     summary_path = out_t("roads_flood_risk_summary")

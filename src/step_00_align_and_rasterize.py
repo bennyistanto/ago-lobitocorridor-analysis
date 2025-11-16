@@ -22,9 +22,17 @@ from pathlib import Path
 import warnings
 import numpy as np
 import geopandas as gpd
+import pandas as pd
+import xarray as xr
 from rasterio.enums import Resampling
+import rioxarray as rxr
 
-from config import PATHS, PARAMS, out_r, get_logger
+from config import (
+    PATHS, PARAMS, out_r, get_logger, 
+    ADMIN2_ID_TIF, ADMIN2_LUT_CSV,
+    RESAMPLE
+)
+
 from utils_geo import (
     open_template,
     align_to_template,
@@ -32,6 +40,8 @@ from utils_geo import (
     write_gtiff_masked,
     fractional_rasterize_polygon,
     align_rwi_to_template,  # <- optional RWI helper
+    rasterize_admin2_ids,
+    apply_aoi_mask_if_enabled,
 )
 
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -61,7 +71,9 @@ def _pick_field(vec_path: Path, candidates: list[str]) -> str | None:
 
 
 def main() -> None:
-    """Align inputs to the travel-time grid and produce AOI-prefixed base rasters."""
+    """
+    Align inputs to the travel-time grid and produce AOI-prefixed base rasters.
+    """
     # -------------------------------------------------------------------------
     # Template grid
     # -------------------------------------------------------------------------
@@ -82,13 +94,13 @@ def main() -> None:
     veg_1km = align_to_template(PATHS.VEG, T, resampling="bilinear")
     drt_1km = align_to_template(PATHS.DROUGHT, T, resampling="bilinear")
 
-    write_gtiff_masked(pop_1km, out_r("pop_1km"), like=T, nodata=np.nan)
+    write_gtiff_masked(pop_1km, out_r("pop_1km"), like=T, nodata=np.nan, force_mask=True)
     log.info(f"Wrote {out_r('pop_1km').name}")
-    write_gtiff_masked(ntl_1km, out_r("ntl_1km"), like=T, nodata=np.nan)
+    write_gtiff_masked(ntl_1km, out_r("ntl_1km"), like=T, nodata=np.nan, force_mask=True)
     log.info(f"Wrote {out_r('ntl_1km').name}")
-    write_gtiff_masked(veg_1km, out_r("veg_1km"), like=T, nodata=np.nan)
+    write_gtiff_masked(veg_1km, out_r("veg_1km"), like=T, nodata=np.nan, force_mask=True)
     log.info(f"Wrote {out_r('veg_1km').name}")
-    write_gtiff_masked(drt_1km, out_r("drought_1km"), like=T, nodata=np.nan)
+    write_gtiff_masked(drt_1km, out_r("drought_1km"), like=T, nodata=np.nan, force_mask=True)
     log.info(f"Wrote {out_r('drought_1km').name}")
 
     # -------------------------------------------------------------------------
@@ -98,7 +110,7 @@ def main() -> None:
         if getattr(PATHS, "RWI", None) and Path(PATHS.RWI).exists():
             log.info("Aligning Meta Relative Wealth Index (RWI) to 1-km grid...")
             rwi_1km = align_rwi_to_template(PATHS.RWI, T)  # bilinear inside
-            write_gtiff_masked(rwi_1km, out_r("rwi_meta_1km"), like=T, nodata=np.nan)
+            write_gtiff_masked(rwi_1km, out_r("rwi_meta_1km"), like=T, nodata=np.nan, force_mask=True)
             log.info(f"Wrote {out_r('rwi_meta_1km').name}")
         else:
             log.info("No RWI file found; skipping equity layer alignment.")
@@ -110,15 +122,15 @@ def main() -> None:
     # -------------------------------------------------------------------------
     log.info("Rasterizing cropland presence (1=any in cell)...")
     cl_pres = rasterize_vector(PATHS.CROPLAND, T, burn_value=1)
-    write_gtiff_masked(cl_pres, out_r("cropland_presence_1km"), like=T, nodata=np.nan)
+    write_gtiff_masked(cl_pres, out_r("cropland_presence_1km"), like=T, nodata=np.nan, force_mask=True)
     log.info(f"Wrote {out_r('cropland_presence_1km').name}")
 
     log.info("Rasterizing cropland fraction (0..1 per 1-km cell, supersample=10)...")
     # --- Cropland fraction with AOI mask → NaN outside AOI, keep true 0 inside AOI
     cl_frac = fractional_rasterize_polygon(PATHS.CROPLAND, T, supersample=10)
-
-    write_gtiff_masked(cl_frac, out_r("cropland_fraction_1km"), like=T, nodata=np.nan)
-    mean_frac = float(np.nanmean(cl_frac.values))
+    write_gtiff_masked(cl_frac, out_r("cropland_fraction_1km"), like=T, nodata=np.nan, force_mask=True)
+    cl_frac_masked_for_stats = apply_aoi_mask_if_enabled(cl_frac, T, force_mask=True)
+    mean_frac = float(np.nanmean(cl_frac_masked_for_stats.values))
     log.info(f"Wrote {out_r('cropland_fraction_1km').name} | mean_fraction={mean_frac:.3f}")
 
     # -------------------------------------------------------------------------
@@ -133,8 +145,8 @@ def main() -> None:
             log.info("Rasterizing electricity masks using field '%s' (1=grid, 99=unelectrified)...", elec_field)
             elc_grid = rasterize_vector(PATHS.ELEC, T, where=f"{elec_field} == 1", burn_value=1)
             elc_une  = rasterize_vector(PATHS.ELEC, T, where=f"{elec_field} == 99", burn_value=1)
-            write_gtiff_masked(elc_grid, out_r("elec_grid_1km"), like=T, nodata=np.nan)
-            write_gtiff_masked(elc_une,  out_r("elec_unelectrified_1km"), like=T, nodata=np.nan)
+            write_gtiff_masked(elc_grid, out_r("elec_grid_1km"), like=T, nodata=np.nan, force_mask=True)
+            write_gtiff_masked(elc_une,  out_r("elec_unelectrified_1km"), like=T, nodata=np.nan, force_mask=True)
             log.info(f"Wrote {out_r('elec_grid_1km').name}, {out_r('elec_unelectrified_1km').name}")
         else:
             log.warning("Electricity layer present but required field not found; skipping elec rasters.")
@@ -152,8 +164,8 @@ def main() -> None:
             log.info("Rasterizing settlement type using field '%s' (2=urban, 0=rural)...", settle_field)
             urb = rasterize_vector(PATHS.SETTLE, T, where=f"{settle_field} == 2", burn_value=1)
             rl  = rasterize_vector(PATHS.SETTLE, T, where=f"{settle_field} == 0", burn_value=1)
-            write_gtiff_masked(urb, out_r("urban_1km"), like=T, nodata=np.nan)
-            write_gtiff_masked(rl,  out_r("rural_1km"), like=T, nodata=np.nan)
+            write_gtiff_masked(urb, out_r("urban_1km"), like=T, nodata=np.nan, force_mask=True)
+            write_gtiff_masked(rl,  out_r("rural_1km"), like=T, nodata=np.nan, force_mask=True)
             log.info(f"Wrote {out_r('urban_1km').name}, {out_r('rural_1km').name}")
         else:
             log.warning("Settlement layer present but 'IsUrban' not found; skipping settlement rasters.")
@@ -170,7 +182,7 @@ def main() -> None:
 
     # (a) 1-km MAX depth (did any subpixel get deep?) — good for quick visual checks
     flood_1km_max = flood_30m.rio.reproject_match(T, resampling=Resampling.max)
-    write_gtiff_masked(flood_1km_max, out_r("flood_rp100_maxdepth_1km"), like=T, nodata=np.nan)
+    write_gtiff_masked(flood_1km_max, out_r("flood_rp100_maxdepth_1km"), like=T, nodata=np.nan, force_mask=True)
     log.info(f"Wrote {out_r('flood_rp100_maxdepth_1km').name}")
 
     # (b) 1-km EXCEEDANCE FRACTION:
@@ -181,7 +193,7 @@ def main() -> None:
 
     # Average aggregation of a binary (0/1) mask gives the coverage fraction in [0,1]
     flood_1km_frac = exceed_native.rio.reproject_match(T, resampling=Resampling.average)
-    write_gtiff_masked(flood_1km_frac, out_r("flood_rp100_exceed_frac_1km"), like=T, nodata=np.nan)
+    write_gtiff_masked(flood_1km_frac, out_r("flood_rp100_exceed_frac_1km"), like=T, nodata=np.nan, force_mask=True)
 
     # Quick diagnostic for logs
     with np.errstate(invalid="ignore"):
@@ -190,6 +202,46 @@ def main() -> None:
         "Wrote %s | threshold=%.2f m | mean_exceedance_fraction=%.3f",
         out_r("flood_rp100_exceed_frac_1km").name, thr_m, mean_frac
     )
+
+    # -------------------------------------------------------------------------
+    # Admin-2: integer label grid + lookup (for rankings/aggregation)
+    # -------------------------------------------------------------------------
+    try:
+        adm2_path = PATHS.BND_ADM2
+        if adm2_path and Path(adm2_path).exists():
+            log.info("Rasterizing Admin-2 labels and writing lookup...")
+
+            # Read & align to template CRS once
+            gdf = gpd.read_file(adm2_path)
+            try:
+                gdf = gdf.to_crs(T.rio.crs)
+            except Exception:
+                # if shapefile has no CRS, assume template CRS
+                gdf.set_crs(T.rio.crs, inplace=True)
+
+            # Use the shared helper — returns (idgrid_da, lookup_df)
+            idgrid_da, lut_df = rasterize_admin2_ids(
+                gdf=gdf,
+                template=T,
+                code_field="ADM2CD_c",
+                name1_field="NAM_1",
+                name2_field="NAM_2",
+                all_touched=False,
+            )
+
+            # Save the label grid (0 = background)
+            idgrid_float = idgrid_da.astype("float32")
+            write_gtiff_masked(idgrid_float, ADMIN2_ID_TIF, like=T, nodata=np.nan, force_mask=True)
+            log.info(f"Wrote {Path(ADMIN2_ID_TIF).name}")
+
+            # Save the lookup (lab, ADM2CD_c, NAM_1, NAM_2)
+            lut_df.to_csv(ADMIN2_LUT_CSV, index=False)
+            log.info(f"Wrote {Path(ADMIN2_LUT_CSV).name}")
+        else:
+            log.info("Admin-2 boundary not found; skipping admin-2 label grid.")
+    except Exception as e:
+        log.warning(f"Admin-2 rasterization skipped due to error: {e}")
+
 
     log.info("Step 00 complete.")
 

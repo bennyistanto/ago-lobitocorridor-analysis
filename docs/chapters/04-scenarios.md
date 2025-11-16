@@ -10,29 +10,35 @@ Predefine a small set of **scenarios** (e.g., “baseline”, “drop\_NTL\_VEG�
 
 ## Data
 
-* **Scenario run tables** — Step 09 (per-scenario ranks & metrics)
-* **Scenario summary** — Step 10 (stacked comparison across scenarios)
-* **Priority clusters** — Step 11 (for optional overlap checks)
+* **Scenario summary** — `outputs/tables/{AOI}_priority_scenarios_summary.csv` (Step 10; one row per scenario with weights, selection metrics, and overlaps vs baseline)
+* *(Optional)* **Scenario masks** — `outputs/rasters/{AOI}_priority_mask_{scenario_id}.tif` (if masks are saved in Step 10)
+* *(Optional)* **Baseline mask** — `outputs/rasters/{AOI}_priority_top10_mask.tif` (from Step 07; if missing, Step 10 treats the first scenario as the baseline in-memory)
 
 ## Methods (brief)
 
-* **Step 09**: run multiple **parameter bundles** (weights/masks/selection).
-* **Step 10**: consolidate into tidy comparison tables (ranks, score deltas, cluster/coverage deltas).
-* We report **stability** (how often a municipality stays in top-K) and **swing** (rank change).
+* **Step 10** defines a small list of **scenarios** (weights, component toggles, masks, selection envelope).
+* For each scenario, it computes:
+  * **selected_cells** and **selected_km2**
+  * **pop_selected** and **ag_km2_selected** (cropland)
+  * **drought_mean_selected** (if drought raster exists)
+  * **overlap_pct_vs_baseline** and **jaccard_vs_baseline** vs a chosen baseline mask
+* Results are written as a **scenario-level summary table** (one row per scenario). If you enable sidecar writing, a JSON meta file with the same scenario definitions is also saved.
 
 ## Outputs
 
-* `outputs/tables/{AOI}_priority_scenarios_summary.csv` — municipality-level comparison across scenarios (rank, score, top-K flags)
-* `outputs/tables/{AOI}_priority_scenarios_clusters.csv` *(optional)* — cluster coverage/metrics per scenario
-* `outputs/tables/{AOI}_priority_muni_rank.csv` — baseline for reference
+* `outputs/tables/{AOI}_priority_scenarios_summary.csv`  
+  *(columns: scenario_id, desc, weight & mask parameters, selected_cells, selected_km2, pop_selected, ag_km2_selected, drought_mean_selected, overlap_pct_vs_baseline, jaccard_vs_baseline, …)*
+* *(Optional)* `outputs/rasters/{AOI}_priority_mask_{scenario_id}.tif` — per-scenario Top-X masks
+* *(Optional)* `outputs/tables/{AOI}_priority_muni_rank.csv` — baseline municipality ranking from Step 09 (used in Chapters 2 and 7)
 
 ## How to run (analyst)
 
-Run **Step 09 → Step 10** once. This chapter only **loads** saved outputs (no recomputation).
+Run **Step 10** once to generate the scenario summary (and optional masks/meta).  
+This chapter only **loads** the saved summary (no recomputation).
 
 **This cell loads the scenario summary and the baseline rank for the current AOI.**
 
-```python
+```{code-cell} ipython3
 import os
 import pandas as pd
 from pathlib import Path
@@ -53,86 +59,81 @@ print("Loaded:", summary_path.name if summary is not None else "no summary",
 
 ## Quick results
 
-**This cell shows the list of scenarios available in the summary.**
+**This cell loads the scenario summary for the current AOI.**
 
-```python
-if summary is None:
-    print("Scenario summary not found; run Steps 09–10 first.")
+```{code-cell} ipython3
+import os
+import pandas as pd
+from pathlib import Path
+
+ROOT = Path(os.getenv("PROJECT_ROOT", "."))
+AOI  = os.getenv("AOI", "moxico")
+OUT  = ROOT / "outputs" / "tables"
+
+summary_path = OUT / f"{AOI}_priority_scenarios_summary.csv"
+summary = pd.read_csv(summary_path) if summary_path.exists() else None
+
+summary.head(10) if summary is not None else f"Summary not found at: {summary_path}"
+```
+
+**This cell lists the scenarios with their main parameters (weights, masks).**
+
+```{code-cell} ipython3
+if summary is not None:
+    cols_basic = ["scenario_id", "desc"]
+    # keep any weight / mask columns if present
+    extra = [c for c in summary.columns if c.startswith(("W_", "MASK_", "TOP_", "MIN_CLUSTER_"))]
+    summary[cols_basic + extra].drop_duplicates("scenario_id")
 else:
-    scenarios = sorted(summary["scenario"].unique().tolist())
-    print("Scenarios:", scenarios)
+    print("Run Step 10 first to generate the summary.")
 ```
 
-**This cell builds a Top-5 cross-scenario stability table (how often each municipality appears in Top-5).**
+**This cell compares key coverage metrics across scenarios.**
 
-```python
+```{code-cell} ipython3
 if summary is not None:
-    # Expect columns: NAM_2, scenario, rank (1=best)
-    top5 = summary[summary["rank"] <= 5]
-    stab = (top5.groupby("NAM_2", as_index=False)["scenario"]
-                 .nunique()
-                 .rename(columns={"scenario":"appearances_in_top5"}))
-    stab = stab.sort_values("appearances_in_top5", ascending=False)
-    stab.head(15)
+    keep = ["scenario_id", "desc",
+            "selected_km2", "pop_selected",
+            "ag_km2_selected", "drought_mean_selected",
+            "overlap_pct_vs_baseline", "jaccard_vs_baseline"]
+    [c for c in keep if c in summary.columns]  # just a quick check
+    summary[keep].sort_values("pop_selected", ascending=False)
 ```
 
-**This cell compares ranks between two chosen scenarios (delta = scenario\_b − scenario\_a).**
+**This cell shows which scenarios cover the largest area and population.**
 
-```python
-# Choose two scenarios by name; adjust to your set
-scenario_a = "baseline"
-scenario_b = "drop_NTL_VEG"
+```{code-cell} ipython3
+if summary is not None:
+    top_pop = summary.sort_values("pop_selected", ascending=False).head(5)
+    top_area = summary.sort_values("selected_km2", ascending=False).head(5)
+    top_pop[["scenario_id","desc","pop_selected","selected_km2"]], \
+    top_area[["scenario_id","desc","selected_km2","pop_selected"]]
+```
 
-if summary is not None and all(s in summary["scenario"].unique() for s in [scenario_a, scenario_b]):
-    a = summary[summary["scenario"] == scenario_a][["NAM_2","rank"]].rename(columns={"rank":"rank_a"})
-    b = summary[summary["scenario"] == scenario_b][["NAM_2","rank"]].rename(columns={"rank":"rank_b"})
-    comp = a.merge(b, on="NAM_2", how="inner")
-    comp["rank_delta"] = comp["rank_b"] - comp["rank_a"]  # negative = improved
-    comp.sort_values("rank_delta").head(15)
+**This cell orders scenarios by overlap vs. the baseline (stability).**
+
+```{code-cell} ipython3
+if summary is not None and "overlap_pct_vs_baseline" in summary.columns:
+    stab = (summary[["scenario_id","desc","overlap_pct_vs_baseline","jaccard_vs_baseline"]]
+                  .sort_values("overlap_pct_vs_baseline", ascending=False))
+    stab
 else:
-    print("Adjust scenario_a/scenario_b to match your summary.")
+    print("Overlap columns not found; check Step 10 output.")
 ```
 
-**This cell flags municipalities that are consistently Top-K across all scenarios (robust picks).**
+**This cell draws a bar chart of population covered by each scenario.**
 
-```python
-TOP_K = 5
-
-if summary is not None:
-    scen_count = summary["scenario"].nunique()
-    robust = (summary.query("rank <= @TOP_K")
-                     .groupby("NAM_2", as_index=False)["scenario"].nunique()
-                     .query("scenario == @scen_count")
-                     .sort_values("NAM_2"))
-    print(f"Municipalities in Top-{TOP_K} for ALL {scen_count} scenarios:")
-    robust["NAM_2"].tolist()
-```
-
-**This cell lists the biggest ‘swing’ municipalities (largest absolute rank change across any two scenarios).**
-
-```python
-if summary is not None:
-    piv = summary.pivot_table(index="NAM_2", columns="scenario", values="rank")
-    piv["max_swing"] = (piv.max(axis=1) - piv.min(axis=1)).astype("int64")
-    piv.sort_values("max_swing", ascending=False).head(15)[["max_swing"]]
-```
-
-*(Optional tiny chart—safe to skip if you want a text-only book.)*
-**This cell draws a quick bar of Top-10 max swings to visualize sensitivity.**
-
-```python
+```{code-cell} ipython3
 import matplotlib.pyplot as plt
 
 if summary is not None:
-    swings = (summary.pivot_table(index="NAM_2", columns="scenario", values="rank")
-                     .assign(max_swing=lambda d: d.max(axis=1)-d.min(axis=1))
-                     .sort_values("max_swing", ascending=False)
-                     .head(10)["max_swing"])
     plt.figure()
-    swings.plot(kind="barh")
-    plt.gca().invert_yaxis()
-    plt.xlabel("Rank swing (bigger = more sensitive)")
-    plt.title(f"{AOI}: Top-10 municipalities by scenario sensitivity")
+    (summary.sort_values("pop_selected", ascending=False)
+            .set_index("scenario_id")["pop_selected"]
+            .plot(kind="bar"))
+    plt.ylabel("Population in selected mask")
+    plt.title(f"{AOI}: Scenario comparison by population coverage")
+    plt.tight_layout()
     plt.show()
 ```
 
@@ -150,5 +151,5 @@ if summary is not None:
 ### Download
 
 * Scenario **summary** → `outputs/tables/{AOI}_priority_scenarios_summary.csv`
-* Scenario **clusters** (optional) → `outputs/tables/{AOI}_priority_scenarios_clusters.csv`
-* Baseline **muni rank** → `outputs/tables/{AOI}_priority_muni_rank.csv`
+* Scenario **meta** (if enabled) → `outputs/tables/{AOI}_priority_scenarios.meta.json`
+* Baseline **muni rank** for equity checks → `outputs/tables/{AOI}_priority_muni_rank.csv`

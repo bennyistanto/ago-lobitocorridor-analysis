@@ -28,7 +28,7 @@ Keep equations intuitive, knobs transparent, and outputs reproducible.
 * **Step 07 – Priority (tunable).**
   Build a **priority surface** on [0,1]:
   *Normalize + weight* ⇒ `score = W_POP·f(pop) + W_VEG·f(veg) + W_NTL·f(ntl) + W_DRT·g(drought) + …`
-  Apply **masks/thresholds** (e.g., min cropland, exclude urban/electrified) before/after scoring.
+  Apply **masks/thresholds** (e.g., rural-only mask and minimum cropland fraction) before/after scoring.
 * **Step 10 – Selection & scenarios.**
   Choose **Top-%** *or* **Top-km²** cells; optionally run **scenarios** (e.g., drop NTL/VEG, higher cropland threshold) and summarize **stability/swing** across municipalities.
 * **Step 11 – Clusters & KPIs.**
@@ -37,7 +37,7 @@ Keep equations intuitive, knobs transparent, and outputs reproducible.
   From each **project site**, compute **≤30/60/120 min** isochrones over the minutes raster; aggregate **people/cropland** per band, plus marginal gains.
 * **Step 13 – Synergies.**
   For **sites & clusters**, compute **nearest distance** and **counts within 5/10/30 km** to Gov/WB/Other projects → coordination opportunities.
-* **Step 14 – OD-Lite.**
+* **Step 14 – Origin-Destination.**
   A simple **gravity model** on Admin2 zones (population × opportunities × distance-decay) to highlight **desire lines** and **hub municipalities** (inflow/outflow).
 
 > All chapters simply **load** what these steps write into `/outputs`.
@@ -53,9 +53,10 @@ Keep equations intuitive, knobs transparent, and outputs reproducible.
 
 **This cell prints the active parameter subset that shapes the priority surface (read-only).**
 
-```python
+```{code-cell} ipython3
 import os, sys, pprint
 from pathlib import Path
+from dataclasses import asdict
 
 ROOT = Path(os.getenv("PROJECT_ROOT", "."))
 AOI  = os.getenv("AOI", "moxico")
@@ -64,30 +65,62 @@ sys.path.append(str(ROOT / "src"))
 from config import PARAMS
 
 pp = pprint.PrettyPrinter(width=100, compact=True)
-keys = ["W_POP","W_NTL","W_VEG","W_DRT",
-        "MASK_MIN_CROPLAND","MASK_URBAN_EXCLUDE","MASK_ELEC_EXISTING",
-        "TOP_PCT_CELLS","TOP_KM2","MIN_CLUSTER_CELLS","MIN_CLUSTER_KM2",
-        "GAUSS_SIGMA_CELLS"]
+params = asdict(PARAMS)
+
+keys = [
+    "W_ACC","W_POP","W_VEG","W_NTL","W_DRT",
+    "MASK_REQUIRE_RURAL","MASK_MIN_CROPLAND",
+    "SMOOTH_RADIUS",
+    "TOP_PCT_CELLS","TOP_KM2",
+    "MIN_CLUSTER_CELLS",
+    "SYNERGY_RADII_KM",
+    "W_POV","W_FOOD","W_MTT","W_RWI",
+]
+
 print("AOI:", AOI)
-pp.pprint({k: PARAMS.get(k, None) for k in keys})
+pp.pprint({k: params.get(k) for k in keys})
 ```
 
 **This cell lists each step and the headline files it produces (sanity checklist).**
 
-```python
+```{code-cell} ipython3
 steps = [
- ("00 Align & rasterize", ["{AOI}_pop_1km.tif","{AOI}_cropland_fraction_1km.tif","{AOI}_flood_rp100_maxdepth_1km.tif"]),
- ("07 Priority / muni rank", ["{AOI}_priority_muni_rank.csv"]),
- ("10 Scenario summary", ["{AOI}_priority_scenarios_summary.csv"]),
- ("11 Clusters & KPIs", ["{AOI}_priority_clusters.csv","{AOI}_priority_clusters_1km.tif"]),
- ("12 Catchments", ["{AOI}_catchments_kpis.csv"]),
- ("13 Synergies", ["{AOI}_synergy_sites.csv","{AOI}_synergy_clusters.csv"]),
- ("14 OD-Lite", ["{AOI}_od_flows.csv","{AOI}_od_agents_sample.csv"])
+    ("00 Align & rasterize", [
+        "{AOI}_pop_1km.tif",
+        "{AOI}_cropland_fraction_1km.tif",
+        "{AOI}_flood_rp100_maxdepth_1km.tif",
+    ]),
+    ("07 Priority (tunable)", [
+        "{AOI}_priority_score_1km.tif",
+        "{AOI}_priority_admin2_rank.csv",
+        "{AOI}_priority_muni_rank.csv",
+    ]),
+    ("10 Scenario summary", [
+        "{AOI}_priority_scenarios_summary.csv",
+    ]),
+    ("11 Clusters & KPIs", [
+        "{AOI}_priority_top10_mask.tif", 
+        "{AOI}_priority_clusters_1km.tif",
+        "{AOI}_priority_clusters.csv",
+    ]),
+    ("12 Catchments", [
+        "{AOI}_catchments_kpis.csv",
+    ]),
+    ("13 Synergies", [
+        "{AOI}_site_synergies.csv",
+        "{AOI}_cluster_synergies.csv",
+    ]),
+    ("14 OD-Lite", [
+        "{AOI}_od_gravity.csv",
+        "{AOI}_od_zone_attrs.csv",
+        "{AOI}_od_agents.csv",
+    ]),
 ]
+
 for name, files in steps:
     print(f"{name}:")
     for f in files:
-        print("  - outputs/…/", f.replace("{AOI}", AOI))
+        print("  - outputs/.../", f.replace("{AOI}", AOI))
 ```
 
 ---
@@ -101,16 +134,28 @@ for name, files in steps:
 
 **This cell echoes the core formula using your current weights (for communication, not math enforcement).**
 
-```python
-w = {k:v for k,v in PARAMS.items() if k.startswith("W_")}
-expr = "score ≈ " + " + ".join([f"{w[k]}·{k[2:].lower()}" for k in sorted(w)])
+```{code-cell} ipython3
+from dataclasses import asdict
+
+p = asdict(PARAMS)
+w = {k: v for k, v in p.items() if k.startswith("W_")}
+
+expr = "score ≈ " + " + ".join(
+    f"{w[k]}·{k[2:].lower()}" for k in sorted(w)
+)
 print(expr)
-print("Masks/thresholds:",
-      {"min_cropland": PARAMS.get("MASK_MIN_CROPLAND"),
-       "exclude_urban": PARAMS.get("MASK_URBAN_EXCLUDE"),
-       "exclude_electrified": PARAMS.get("MASK_ELEC_EXISTING")})
-print("Selection:", {"top_pct_cells": PARAMS.get("TOP_PCT_CELLS"),
-                     "top_km2": PARAMS.get("TOP_KM2")})
+
+print("Masks/thresholds:", {
+    "require_rural": p.get("MASK_REQUIRE_RURAL"),
+    "min_cropland": p.get("MASK_MIN_CROPLAND"),
+})
+
+print("Selection:", {
+    "top_pct_cells": p.get("TOP_PCT_CELLS"),
+    "top_km2": p.get("TOP_KM2"),
+})
+
+print("Smoothing radius (cells):", p.get("SMOOTH_RADIUS"))
 ```
 
 ---

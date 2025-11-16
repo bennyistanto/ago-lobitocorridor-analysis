@@ -47,7 +47,7 @@ Outputs
 
 Configuration knobs (local here; feel free to move into config.Params)
 ----------------------------------------------------------------------
-- RADII_KM = (5, 10, 30)
+- SYNERGY_RADII_KM = (5, 10, 30)
 
 Usage
 -----
@@ -79,9 +79,11 @@ from config import (
 log = get_logger(__name__)
 
 # ---------------------------------------------------------------------
-# Tunables (move to config.py if you want)
-RADII_KM: Tuple[int, ...] = (5, 10, 30)
+# Radii from config (falls back to 5/10/30)
+SYNERGY_RADII_KM: Tuple[int, ...] = tuple(getattr(PARAMS, "SYNERGY_RADII_KM", (5, 10, 30)))
+SYNERGY_RADII_KM = tuple(sorted({int(r) for r in SYNERGY_RADII_KM if int(r) > 0}))
 # ---------------------------------------------------------------------
+
 
 # Optional project layers (will be pulled from config if available)
 try:
@@ -245,9 +247,9 @@ def main() -> None:
 
     # --- Site-level synergies -------------------------------------------------
     # Nearest distances
-    nearest_gov, counts_gov = _nearest_and_counts(sites, g_gov, RADII_KM)
-    nearest_wb,  counts_wb  = _nearest_and_counts(sites, g_wb,  RADII_KM)
-    nearest_oth, counts_oth = _nearest_and_counts(sites, g_oth, RADII_KM)
+    nearest_gov, counts_gov = _nearest_and_counts(sites, g_gov, SYNERGY_RADII_KM)
+    nearest_wb,  counts_wb  = _nearest_and_counts(sites, g_wb,  SYNERGY_RADII_KM)
+    nearest_oth, counts_oth = _nearest_and_counts(sites, g_oth, SYNERGY_RADII_KM)
 
     # Assemble DataFrame
     df_site = pd.DataFrame({
@@ -258,14 +260,39 @@ def main() -> None:
         "dist_km_nearest_wb":  nearest_wb,
         "dist_km_nearest_oth": nearest_oth,
     })
-    for r in RADII_KM:
+    for r in SYNERGY_RADII_KM:
         df_site[f"count_gov_le{r}km"] = counts_gov[r]
         df_site[f"count_wb_le{r}km"]  = counts_wb[r]
         df_site[f"count_oth_le{r}km"] = counts_oth[r]
 
+    # --- schema lock for site synergies ---
+    exp = [
+        "site_id", "lon", "lat",
+        "dist_km_nearest_gov", "dist_km_nearest_wb", "dist_km_nearest_oth",
+    ]
+    for r in SYNERGY_RADII_KM:
+        exp += [f"count_gov_le{r}km", f"count_wb_le{r}km", f"count_oth_le{r}km"]
+
+    for c in exp:
+        if c not in df_site.columns:
+            df_site[c] = np.nan
+
+    # dtypes/rounding
+    df_site["site_id"] = pd.to_numeric(df_site["site_id"], errors="coerce").round(0).astype("Int64")
+    for c in ("lon", "lat"):
+        df_site[c] = pd.to_numeric(df_site[c], errors="coerce").astype("float64").round(5)
+    for c in ("dist_km_nearest_gov", "dist_km_nearest_wb", "dist_km_nearest_oth"):
+        df_site[c] = pd.to_numeric(df_site[c], errors="coerce").astype("float64").round(1)
+    for r in SYNERGY_RADII_KM:
+        for c in (f"count_gov_le{r}km", f"count_wb_le{r}km", f"count_oth_le{r}km"):
+            df_site[c] = pd.to_numeric(df_site[c], errors="coerce").fillna(0).round(0).astype("Int64")
+
+    df_site = df_site[exp]
+
     out_csv_site = Path(out_t("site_synergies"))
     df_site.to_csv(out_csv_site, index=False)
     log.info(f"Saved site synergies → {out_csv_site.name} | rows={len(df_site)}")
+
 
     # --- Cluster-level synergies (optional) -----------------------------------
     clust_csv = PATHS.OUT_T / f"{AOI}_priority_clusters.csv"
@@ -282,9 +309,9 @@ def main() -> None:
             )
 
             # Reuse nearest/counts
-            cg, cg_counts = _nearest_and_counts(g_cent, g_gov, RADII_KM)
-            cw, cw_counts = _nearest_and_counts(g_cent, g_wb,  RADII_KM)
-            co, co_counts = _nearest_and_counts(g_cent, g_oth, RADII_KM)
+            cg, cg_counts = _nearest_and_counts(g_cent, g_gov, SYNERGY_RADII_KM)
+            cw, cw_counts = _nearest_and_counts(g_cent, g_wb,  SYNERGY_RADII_KM)
+            co, co_counts = _nearest_and_counts(g_cent, g_oth, SYNERGY_RADII_KM)
 
             df_cluster = pd.DataFrame({
                 "cluster_id": df_c["cluster_id"].values.astype("int32"),
@@ -294,14 +321,38 @@ def main() -> None:
                 "dist_km_nearest_wb":  cw,
                 "dist_km_nearest_oth": co,
             })
-            for r in RADII_KM:
+            for r in SYNERGY_RADII_KM:
                 df_cluster[f"count_gov_le{r}km"] = cg_counts[r]
                 df_cluster[f"count_wb_le{r}km"]  = cw_counts[r]
                 df_cluster[f"count_oth_le{r}km"] = co_counts[r]
 
+            # --- schema lock for cluster synergies ---
+            exp_c = [
+                "cluster_id", "lon", "lat",
+                "dist_km_nearest_gov", "dist_km_nearest_wb", "dist_km_nearest_oth",
+            ]
+            for r in SYNERGY_RADII_KM:
+                exp_c += [f"count_gov_le{r}km", f"count_wb_le{r}km", f"count_oth_le{r}km"]
+
+            for c in exp_c:
+                if c not in df_cluster.columns:
+                    df_cluster[c] = np.nan
+
+            df_cluster["cluster_id"] = pd.to_numeric(df_cluster["cluster_id"], errors="coerce").round(0).astype("Int64")
+            for c in ("lon", "lat"):
+                df_cluster[c] = pd.to_numeric(df_cluster[c], errors="coerce").astype("float64").round(5)
+            for c in ("dist_km_nearest_gov", "dist_km_nearest_wb", "dist_km_nearest_oth"):
+                df_cluster[c] = pd.to_numeric(df_cluster[c], errors="coerce").astype("float64").round(1)
+            for r in SYNERGY_RADII_KM:
+                for c in (f"count_gov_le{r}km", f"count_wb_le{r}km", f"count_oth_le{r}km"):
+                    df_cluster[c] = pd.to_numeric(df_cluster[c], errors="coerce").fillna(0).round(0).astype("Int64")
+
+            df_cluster = df_cluster[exp_c]
+
             out_csv_cluster = Path(out_t("cluster_synergies"))
             df_cluster.to_csv(out_csv_cluster, index=False)
             log.info(f"Saved cluster synergies → {out_csv_cluster.name} | rows={len(df_cluster)}")
+
         else:
             log.info("Cluster CSV found but missing required columns; skipping cluster synergies.")
     else:

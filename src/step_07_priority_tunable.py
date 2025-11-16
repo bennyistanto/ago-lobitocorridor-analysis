@@ -49,8 +49,8 @@ import xarray as xr
 from pathlib import Path
 from typing import Dict
 from rasterio.enums import Resampling
-
-from scipy.ndimage import label
+import pandas as pd
+import rioxarray as rxr
 
 from config import (
     AOI, PATHS, PARAMS,
@@ -60,15 +60,70 @@ from config import (
     RESAMPLE_DEFAULT_CONT, RESAMPLE_DEFAULT_CAT,
     WRITE_JSON_SIDECARS, write_geo_sidecar,
 )
+# Safe fallbacks if these constants aren’t present in config
+try:
+    from config import ADMIN2_ID_TIF, ADMIN2_LUT_CSV
+except Exception:
+    from config import out_t
+    ADMIN2_ID_TIF = out_r("admin2_id_1km")
+    ADMIN2_LUT_CSV = out_t("admin2_lookup")
+
 from utils_geo import (
     open_template, write_gtiff_masked, 
-    focal_mean, cell_area_km2_latlon
+    focal_mean, cell_area_km2_latlon,
+    apply_aoi_mask_if_enabled,
+    select_top_mask_nan as select_top,
+    remove_small_clusters as prune_clusters,
 )
 
 log = get_logger(__name__)
 
 
 # ------------------------------ IO helpers -----------------------------------
+
+# ---- Admin-2 rank schema lock (13 columns) ----
+EXPECTED_RANK_COLS = [
+    "ADM2CD_c", "NAM_1", "NAM_2",
+    "score", "rank",
+    "selected",
+    "share_selected",
+    "selected_cells", "selected_km2",
+    "total_cells", "total_km2",
+    "top10_cells", "top10_km2",
+]
+
+def _ensure_rank_columns(df):
+    """
+    Enforce expected columns, defaults, order, and dtypes.
+    Returns a new DataFrame containing only EXPECTED_RANK_COLS.
+    """
+    import numpy as np
+    import pandas as pd
+
+    out = df.copy()
+
+    # Defaults if missing
+    for c in EXPECTED_RANK_COLS:
+        if c not in out.columns:
+            if c == "selected":
+                out[c] = False
+            elif c in ("selected_cells", "total_cells", "top10_cells", "rank"):
+                out[c] = 0
+            elif c in ("selected_km2", "total_km2", "top10_km2", "share_selected", "score"):
+                out[c] = 0.0
+            else:
+                out[c] = np.nan
+
+    # Dtypes
+    out["selected"] = out["selected"].astype(bool)
+    for c in ("selected_cells", "total_cells", "top10_cells", "rank"):
+        out[c] = pd.to_numeric(out[c], errors="coerce").fillna(0).astype(int)
+    for c in ("selected_km2", "total_km2", "top10_km2", "share_selected", "score"):
+        out[c] = pd.to_numeric(out[c], errors="coerce").astype("float64")
+
+    # Keep only the expected columns, in order
+    return out[EXPECTED_RANK_COLS]
+
 
 def _r(path: str) -> xr.DataArray | None:
     """Open a raster if it exists; return None if missing."""
@@ -296,66 +351,11 @@ def _smooth_if_needed(score: xr.DataArray) -> xr.DataArray:
     return focal_mean(score, radius=r)
 
 
-def _select_top_mask(score: xr.DataArray, T) -> xr.DataArray:
-    """
-    Build a binary mask via Top % or Top km² (area-true).
-    """
-    # Flatten valid cells
-    v = score.values
-    valid = np.isfinite(v)
-    if not np.any(valid):
-        return score * np.nan
 
-    # Decide selection method
-    if PARAMS.TOP_KM2 is not None:
-        # Select largest-scoring cells until cumulative area >= TOP_KM2
-        area = cell_area_km2_latlon(T).values
-        area[~valid] = 0.0
-        flat_idx = np.argsort(v[valid])[::-1]
-        
-        a_valid = area[valid][flat_idx]
-        cum_area = np.cumsum(a_valid)
-        cutoff = float(PARAMS.TOP_KM2)
-        
-        k = int(np.searchsorted(cum_area, cutoff, side="left")) + 1
-        sel = np.zeros_like(v, dtype=np.uint8)
-        
-        # map back to full grid
-        rr, cc = np.where(valid)
-        sel[rr[flat_idx[:k]], cc[flat_idx[:k]]] = 1
-        return xr.DataArray(sel, coords=score.coords, dims=score.dims)
-
-    # Percentile
-    top_pct = float(PARAMS.TOP_PCT_CELLS or 0.10)
-    q = np.nanpercentile(v, (1.0 - top_pct) * 100.0)
-    mask = (score >= q).astype(np.uint8)
-    return mask
-
-
-def _remove_small_clusters(mask: xr.DataArray) -> xr.DataArray:
-    """
-    Remove connected components smaller than MIN_CLUSTER_CELLS.
-    """
-    min_cells = int(PARAMS.MIN_CLUSTER_CELLS or 0)
-    if min_cells <= 1:
-        return mask
-
-    arr = (mask.values > 0).astype(np.uint8)
-    lbl, n = label(arr)
-    if n == 0:
-        return mask
-
-    # sizes per label (0 is background)
-    sizes = np.bincount(lbl.ravel())
-    kill = np.where(sizes < min_cells)[0]
-    kill = kill[kill != 0]
-    if len(kill) == 0:
-        return mask
-
-    pruned = arr.copy()
-    for lab in kill:
-        pruned[lbl == lab] = 0
-    return xr.DataArray(pruned.astype(np.uint8), coords=mask.coords, dims=mask.dims)
+def _admin2_rank_path():
+    # One consistent file name for the required table
+    from config import out_t as _out_t
+    return _out_t("priority_admin2_rank")
 
 
 # --------------------------------- Main --------------------------------------
@@ -423,15 +423,21 @@ def main() -> None:
     if WRITE_JSON_SIDECARS:
         write_geo_sidecar(Path(PRIORITY_TIF), like=T, extra={"kind": "priority_score"})
 
-    # Select Top-X and prune
-    mask = _select_top_mask(score, T)
+    # Select Top-X (percent or km2) with NaN outside AOI
+    mask = select_top(
+        score, T,
+        top_pct=PARAMS.TOP_PCT_CELLS if PARAMS.TOP_KM2 is None else None,
+        top_km2=PARAMS.TOP_KM2
+    )
 
-    # Remove small clusters
-    mask = _remove_small_clusters(mask)
+    # Optional pruning of tiny blobs
+    mask = prune_clusters(mask, int(PARAMS.MIN_CLUSTER_CELLS or 0))
 
-    # Write mask (keep historical name 'priority_top10_mask')
+    # Policy-aware AOI mask at sink (keeps NaN outside even after pruning)
+    mask = apply_aoi_mask_if_enabled(mask, T)
+
     write_gtiff_masked(mask, PRIORITY_TOP10_TIF, like=T, nodata=np.nan)
-    log.info(f"Wrote {Path(PRIORITY_TOP10_TIF).name} | selected={(mask.values>0).sum()} cells")
+    log.info(f"Wrote {Path(PRIORITY_TOP10_TIF).name} | selected={(mask.values==1).sum()} cells")
 
     if WRITE_JSON_SIDECARS:
         write_geo_sidecar(Path(PRIORITY_TOP10_TIF), like=T, extra={"kind": "priority_top_mask"})
@@ -467,9 +473,173 @@ def main() -> None:
                 "priority_top_mask_tif": _P(PRIORITY_TOP10_TIF).name,
             },
         }
+        meta["overlays_present"] = sorted([k for k in ("POV","FOOD","MTT","RWI") if k in comps])
+
         _meta_path = _P(PRIORITY_TIF).with_suffix(".meta.json")
         _meta_path.write_text(_json.dumps(meta, indent=2))
         log.info(f"Wrote sidecar meta → {_meta_path.name}")
+    
+    # -------------------------------------------------------------------------
+    # Admin-2 priority ranking table (required columns)
+    #   Columns: ADM2CD_c, NAM_1, NAM_2, score, rank, selected
+    #   Extras:  share_selected (0..1) for transparency/debug
+    # -------------------------------------------------------------------------
+    try:
+        # Canonical targets
+        p_id = Path(ADMIN2_ID_TIF)
+        p_lut = Path(ADMIN2_LUT_CSV)
+
+        # Fallback discovery if the exact names differ
+        if not p_id.exists():
+            cand = list(Path(PATHS.OUT_R).glob(f"{AOI}*admin2*id*1km*.tif"))
+            if cand:
+                p_id = cand[0]
+        if not p_lut.exists():
+            cands = (list(Path(PATHS.OUT_T).glob(f"{AOI}*admin2*lookup*.csv")) +
+                     list(Path(PATHS.OUT_T).glob(f"{AOI}*admin2*lookup*.csv.gz")))
+            if cands:
+                p_lut = cands[0]
+
+        if p_id.exists() and p_lut.exists():
+            # --- read rasters and force 2D numpy arrays (no band dim, no masked arrays)
+            idgrid = rxr.open_rasterio(p_id, masked=True).squeeze()
+            if hasattr(idgrid, "rio"):
+                if (idgrid.shape != T.shape) or (idgrid.rio.transform() != T.rio.transform()) or (idgrid.rio.crs != T.rio.crs):
+                    idgrid = idgrid.rio.reproject_match(T, resampling=Resampling.nearest)
+
+            # Read priority and mask, then squeeze to 2D and convert masked→np.nan safely
+            v_da = xr.open_dataarray(PRIORITY_TIF).squeeze()
+            m_da = xr.open_dataarray(PRIORITY_TOP10_TIF).squeeze()
+
+            def _to_2d_float(arr):
+                a = np.asarray(arr.values)
+                if a.ndim == 3 and a.shape[0] == 1:
+                    a = a[0]
+                if np.ma.isMaskedArray(a):
+                    a = a.filled(np.nan)
+                if a.ndim != 2:
+                    raise RuntimeError(f"Expected 2D raster, got shape={a.shape}")
+                return a.astype("float64")
+
+            v   = _to_2d_float(v_da)   # priority score 0..1 with NaN outside AOI
+            m   = _to_2d_float(m_da)   # selection mask (1=selected, NaN/0 otherwise)
+
+            ids = np.asarray(idgrid.values)
+            if ids.ndim == 3 and ids.shape[0] == 1:
+                ids = ids[0]
+            if np.ma.isMaskedArray(ids):
+                ids = ids.filled(0)
+            if ids.ndim != 2:
+                raise RuntimeError(f"Expected 2D admin id grid, got shape={ids.shape}")
+            ids = np.where(np.isfinite(ids), ids, 0).astype("int32")
+
+            # shapes must match
+            if v.shape != ids.shape or m.shape != ids.shape:
+                raise RuntimeError(f"Shape mismatch: score{v.shape}, mask{m.shape}, ids{ids.shape}")
+
+            # Lookup table
+            lut = pd.read_csv(p_lut)
+            for col in ["lab", "ADM2CD_c", "NAM_1", "NAM_2"]:
+                if col not in lut.columns:
+                    lut[col] = np.nan
+            lut = lut[["lab", "ADM2CD_c", "NAM_1", "NAM_2"]].copy()
+            lut["lab"] = lut["lab"].astype("Int64")
+
+            # Filter valid cells (inside AOI ∧ has admin id)
+            valid = np.isfinite(v) & (ids > 0)
+            if not valid.any():
+                log.warning("Admin-2 ranking: no valid cells; skipping table.")
+            else:
+                vv   = v[valid]
+                ii   = ids[valid]
+                sel  = np.nan_to_num(m[valid], nan=0.0) > 0
+
+                # Per-cell area (km²), matched to template
+                ak_da = cell_area_km2_latlon(T)
+                ak    = np.asarray(ak_da.values)
+                if ak.ndim == 3 and ak.shape[0] == 1:
+                    ak = ak[0]
+                akv = ak[valid]
+
+                max_id = int(ii.max()) if ii.size else 0
+                if max_id == 0:
+                    log.warning("Admin-2 ranking: all admin ids are zero; skipping table.")
+                else:
+                    # Aggregations by admin id
+                    sums_score   = np.bincount(ii, weights=vv, minlength=max_id + 1)
+                    cnts_total   = np.bincount(ii, minlength=max_id + 1)
+                    cnts_sel     = np.bincount(ii, weights=sel.astype("float64"), minlength=max_id + 1)
+
+                    km2_total    = np.bincount(ii, weights=akv, minlength=max_id + 1)
+                    km2_selected = np.bincount(ii, weights=akv * sel.astype("float64"), minlength=max_id + 1)
+
+                    # Means & shares
+                    means = np.divide(sums_score, cnts_total,
+                                      out=np.full_like(sums_score, np.nan, dtype="float64"),
+                                      where=cnts_total > 0)
+                    share_selected = np.divide(cnts_sel, cnts_total,
+                                               out=np.zeros_like(cnts_sel, dtype="float64"),
+                                               where=cnts_total > 0)
+
+                    # Build frame
+                    df = pd.DataFrame({
+                        "lab": np.arange(0, max_id + 1, dtype=int),
+                        "score": means,
+                        "selected_cells": cnts_sel.astype(int),
+                        "total_cells": cnts_total.astype(int),
+                        "selected_km2": km2_selected.astype("float64"),
+                        "total_km2": km2_total.astype("float64"),
+                        "share_selected": share_selected.astype("float64"),
+                    })
+                    df = df[df["lab"] > 0]
+
+                    out_df = df.merge(lut, on="lab", how="left")
+
+                    # Selection boolean; "top10_*" aliases for compatibility
+                    out_df["selected"]   = out_df["selected_cells"] > 0
+                    out_df["top10_cells"] = out_df["selected_cells"].astype(int)
+                    out_df["top10_km2"]   = out_df["selected_km2"].astype("float64")
+
+                    # Rank by score desc
+                    out_df = out_df.sort_values("score", ascending=False, na_position="last").reset_index(drop=True)
+                    out_df["rank"] = (np.arange(len(out_df)) + 1).astype(int)
+
+                    # Enforce stable column order (core first, extras after)
+                    CORE = ["ADM2CD_c", "NAM_1", "NAM_2", "score", "rank", "selected", "share_selected"]
+                    EXTRAS = ["selected_cells", "selected_km2", "total_cells", "total_km2", "top10_cells", "top10_km2"]
+
+                    # Lock schema (13 columns), defaults + order + dtypes
+                    out_df = _ensure_rank_columns(out_df)
+
+                    # Write both canonical outputs (identical schema)
+                    out_csv_a = _admin2_rank_path().with_suffix(".csv")  # {AOI}_priority_admin2_rank.csv
+                    out_csv_b = Path(PATHS.OUT_T) / f"{AOI}_priority_muni_rank.csv"
+
+                    # Remove legacy if it exists with wrong columns
+                    if out_csv_b.exists():
+                        try:
+                            _tmp = pd.read_csv(out_csv_b, nrows=1)
+                            if set(_tmp.columns) != set(EXPECTED_RANK_COLS):
+                                out_csv_b.unlink(missing_ok=True)
+                                log.info("Removed stale legacy rank file with mismatched columns: %s", out_csv_b.name)
+                        except Exception:
+                            out_csv_b.unlink(missing_ok=True)
+                            log.info("Removed unreadable legacy rank file: %s", out_csv_b.name)
+
+                    # Write both (identical schema)
+                    out_df.to_csv(out_csv_a, index=False)
+                    out_df.to_csv(out_csv_b, index=False)
+                    log.info(
+                        "Wrote Admin-2 priority tables → %s, %s (rows=%d, cols=%d)",
+                        out_csv_a.name, out_csv_b.name, len(out_df), out_df.shape[1]
+                    )
+
+        else:
+            log.info("Admin-2 grid/lookup not found; skip Admin-2 ranking table.")
+
+    except Exception as e:
+        log.warning(f"Admin-2 priority table skipped due to error: {e}")
+
 
     log.info("Step 07 complete.")
 

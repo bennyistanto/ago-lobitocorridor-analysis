@@ -46,6 +46,7 @@ from shapely.geometry import Point
 from config import (
     AOI, PATHS, PARAMS, get_logger,
     out_t, out_r, muni_path_for, ADMIN2_THEMES,
+    RESAMPLE,
 )
 
 from utils_geo import (
@@ -338,7 +339,7 @@ def main() -> None:
 
     pop = rxr.open_rasterio(pop_fp, masked=True).squeeze()
     if (pop.shape != T.shape) or (pop.rio.transform() != T.rio.transform()) or (pop.rio.crs != T.rio.crs):
-        pop = pop.rio.reproject_match(T, resampling="bilinear")
+        pop = pop.rio.reproject_match(T, resampling=RESAMPLE("bilinear"))
 
     # Optional RWI (Meta -2..+2), aligned to template
     rwi_fp = out_r("rwi_meta_1km")
@@ -346,7 +347,7 @@ def main() -> None:
     if Path(rwi_fp).exists():
         rwi = rxr.open_rasterio(rwi_fp, masked=True).squeeze()
         if (rwi.shape != T.shape) or (rwi.rio.transform() != T.rio.transform()) or (rwi.rio.crs != T.rio.crs):
-            rwi = rwi.rio.reproject_match(T, resampling="bilinear")
+            rwi = rwi.rio.reproject_match(T, resampling=RESAMPLE("bilinear"))
         log.info("RWI found: using equity tilt.")
 
     # 2) Admin2 geometry
@@ -375,7 +376,12 @@ def main() -> None:
     cent["centroid"] = cent.geometry.centroid
     cent["lon"] = cent["centroid"].x.astype("float64")
     cent["lat"] = cent["centroid"].y.astype("float64")
+
+    # --- Align centroid order to df_z.index (critical for F↔D consistency)
+    cent = cent.set_index("ADM2CD_c").loc[df_z.index].reset_index()
+
     D = _pairwise_geodesic_km(cent["lon"].values, cent["lat"].values)
+    log.info("OD zones aligned by ADM2CD_c order | N=%d", len(cent))
 
     # 5) Gravity model
     pop_i = df_z[mass_col].values.copy()
@@ -427,8 +433,22 @@ def main() -> None:
     }).to_csv(out_grav, index=False)
 
     # Zone attributes (with centroids)
-    df_z.assign(lon=cent["lon"].values, lat=cent["lat"].values, NAM_1=cent["NAM_1"].values, NAM_2=cent["NAM_2"].values)\
-        .to_csv(out_z, index=False)
+    # Reset index so ADM2CD_c becomes a column in the CSV
+    df_z_out = (
+        df_z.copy()
+        .reset_index()                       # brings ADM2CD_c into columns
+        .assign(
+            NAM_1 = cent["NAM_1"].values,
+            NAM_2 = cent["NAM_2"].values,
+            lon   = cent["lon"].values,
+            lat   = cent["lat"].values,
+        )
+    )
+
+    # Stable, explicit column order (IDs first)
+    cols = [c for c in ["ADM2CD_c", "NAM_1", "NAM_2", "lon", "lat", "pop", "rwi_z", "mass"] if c in df_z_out.columns]
+    df_z_out = df_z_out[cols]
+    df_z_out.to_csv(out_z, index=False)
 
     log.info(f"Wrote {out_grav.name}, {out_z.name}")
 

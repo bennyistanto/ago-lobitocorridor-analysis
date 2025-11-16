@@ -44,7 +44,7 @@ This page lists the core inputs used across provinces and the Admin2 socio-econo
 
 ## B. Admin2 socio-economic (RAPP & poverty map)
 
-Files follow: `data/vectors/admin2_rapp/ago_gov_{adm2}_{theme}_rapp_2020_a.shp`  
+Files follow: `data/vectors/ago_gov_{adm2}_{theme}_rapp_2020_a.shp`  
 
 - Key columns: `NAM_1` (Admin1), `NAM_2` (Admin2), `ADM2CD_c`, and `data1..dataN` per theme.
 

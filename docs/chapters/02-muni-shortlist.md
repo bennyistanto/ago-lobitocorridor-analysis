@@ -15,22 +15,25 @@ Aggregate the priority surface to **Admin2** and build a **composite score** per
 
 ## Methods (brief)
 
-- **Step 07 / 10**: compute municipality scores (pop-weighted mean/quantiles).
+- **Step 09**: compute Admin2 KPIs (area, population, cropland km², % electrified, % rural, % area under the priority mask, access metrics) and a simple **min–max composite score**.
+- Under the hood, the score averages normalized indicators such as **rural poverty**, **food insecurity**, **average travel time**, **share of priority area**, **cropland km²**, and **(1 − % electrified)** (see Step 09 docstring for details).
 - Merge with RAPP **poverty** and **food insecurity** attributes.
-- Compute correlations and flag outliers (high score + high poverty = good alignment).
+- Compute correlations as a basic equity check (see Chapter 7 for detailed outlier flags at municipality level).
+
 
 ## Outputs
 
-- `outputs/tables/{AOI}_priority_muni_rank.csv` — one row per Admin2 (score, pop, optional poverty & food insecurity)
+- `outputs/tables/{AOI}_priority_muni_rank.csv` — one row per Admin2 (composite score, population, and merged poverty & food-insecurity indicators)
 - `outputs/tables/{AOI}_priority_scenarios_summary.csv` — stability across scenarios (optional)
 
 ## How to run (analyst)
 
-Run: **07** (and **10** for scenarios). This chapter only **loads** saved outputs (no recomputation).
+Run: **06 → 07 → 09** (and **10** for scenarios). This chapter only **loads** saved outputs (no recomputation).
+
 
 **This cell loads the municipality ranking table from `/outputs` and shows the top-10 by score.**
 
-```python
+```{code-cell} ipython3
 import os
 import pandas as pd
 from pathlib import Path
@@ -40,21 +43,21 @@ AOI  = os.getenv("AOI", "moxico")
 OUT  = ROOT / "outputs" / "tables"
 
 rank = pd.read_csv(OUT / f"{AOI}_priority_muni_rank.csv").sort_values("score", ascending=False)
-rank[["NAM_1","NAM_2","score","pop"]].head(10)
+rank[["NAM_1","NAM_2","score","pop_total"]].head(10)
 ```
 
 ## Quick results
 
 This cell lists the Top-5 municipalities by composite score.
 
-```python
-top5 = rank.head(5)[["NAM_1","NAM_2","score","pop"]].copy()
+```{code-cell} ipython3
+top5 = rank.head(5)[["NAM_1","NAM_2","score","pop_total"]].copy()
 top5
 ```
 
 This cell runs an equity check: correlation between score and a rural-poverty column (auto-detected if present).
 
-```python
+```{code-cell} ipython3
 pov_candidates = [
     "rural_poverty", "poverty_rural", "pov_rural",
     "RURAL_POV", "data1"  # use 'data1' only if your RAPP merge kept rural poverty under this name

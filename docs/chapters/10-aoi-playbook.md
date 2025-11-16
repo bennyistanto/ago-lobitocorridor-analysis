@@ -11,7 +11,9 @@ Standardize three things: (1) **AOI selection** (single source of truth), (2) **
 ## Data
 
 * Same inputs as earlier chapters (see “Data menu”) but **clipped per AOI**.
-* Socio-economic Admin2 (RAPP) shapefiles: `data/vectors/admin2_rapp/ago_gov_{adm2}_{theme}_rapp_2020_a.shp`
+* Socio-economic Admin2 (RAPP) shapefiles:  
+  `data/vectors/{pfx}_{AOI}_adm2_{theme}_rapp_2020_a.shp`,  
+  where `{pfx} ∈ {ago_gov, ago_pop}` and `theme` is one of the RAPP themes (e.g. `poverty`, `traveltime`, `foodinsecurity`).
 * Core rasters/vectors following your standardized names in `config.py`.
 
 ## Methods (brief)
@@ -30,7 +32,7 @@ Standardize three things: (1) **AOI selection** (single source of truth), (2) **
 
 **This cell sets/reads AOI & project root; it prints where outputs will go.**
 
-```python
+```{code-cell} ipython3
 import os
 from pathlib import Path
 
@@ -47,7 +49,7 @@ print("AOI:", AOI, "\nROOT:", ROOT, "\nOUT_R:", OUT_R, "\nOUT_T:", OUT_T)
 
 **This cell imports `config.py` to confirm paths resolve for this AOI.**
 
-```python
+```{code-cell} ipython3
 import sys
 sys.path.append(str(ROOT / "src"))
 from config import PATHS, PARAMS
@@ -63,7 +65,7 @@ print("  FLOOD :", PATHS.FLOOD.name)
 
 **This cell runs a quick preflight: do required files exist for this AOI?**
 
-```python
+```{code-cell} ipython3
 missing = [k for k,p in {
     "TRAVEL": PATHS.TRAVEL, "POP": PATHS.POP, "NTL": PATHS.NTL, "VEG": PATHS.VEG,
     "DROUGHT": PATHS.DROUGHT, "FLOOD": PATHS.FLOOD, "CROPLAND": PATHS.CROPLAND,
@@ -74,29 +76,30 @@ print("Missing:", missing if missing else "All required inputs found.")
 
 **This cell shows the *socio-economic Admin2 themes* available (from config).**
 
-```python
+```{code-cell} ipython3
 from config import ADMIN2_THEMES
 ADMIN2_THEMES
 ```
 
 **This cell prints the *minimal core run list* (scripts → outputs they create).**
 
-```python
+```{code-cell} ipython3
 print(
     "Run order (minimal):\n"
-    "  00  Align & rasterize core layers  → outputs/rasters/{AOI}_*_1km.tif\n"
-    "  07  Priority + muni ranking        → outputs/tables/{AOI}_priority_muni_rank.csv\n"
-    "  10  (Optional) Scenario summary    → outputs/tables/{AOI}_priority_scenarios_summary.csv\n"
-    "  11  Priority clusters + KPIs       → outputs/tables/{AOI}_priority_clusters.csv\n"
-    "  12  Catchments from sites          → outputs/tables/{AOI}_catchments_kpis.csv\n"
-    "  13  Synergies (project proximity)  → outputs/tables/{AOI}_synergy_*.csv\n"
-    "  14  OD-Lite (optional)             → outputs/tables/{AOI}_od_*.csv\n"
+    "  00  Align & rasterize core layers   → outputs/rasters/{AOI}_*_1km.tif\n"
+    "  07  Priority surface + Admin2 rank  → outputs/tables/{AOI}_priority_admin2_rank.csv\n"
+    "  09  Municipality targeting table    → outputs/tables/{AOI}_priority_muni_rank.csv\n"
+    "  10  (Optional) Scenario summary     → outputs/tables/{AOI}_priority_scenarios_summary.csv\n"
+    "  11  Priority clusters + KPIs        → outputs/tables/{AOI}_priority_clusters.csv\n"
+    "  12  Catchments from sites           → outputs/tables/{AOI}_catchments_kpis.csv\n"
+    "  13  Synergies (project proximity)   → outputs/tables/{AOI}_site_synergies.csv, {AOI}_cluster_synergies.csv\n"
+    "  14  Origin Destination (optional)   → outputs/tables/{AOI}_od_gravity.csv, {AOI}_od_zone_attrs.csv, {AOI}_od_agents.csv\n"
 )
 ```
 
 **This cell (optional) shows how to run a step module inline from the book (use sparingly).**
 
-```python
+```{code-cell} ipython3
 # ⚠️ Prefer running steps from your notebooks/CLI; chapters should mostly load outputs.
 # Example: run step_07 in-process if you must refresh quickly.
 import importlib
@@ -110,7 +113,7 @@ m.main()  # writes tables into outputs/
 
 **This cell verifies that the *minimum expected outputs* exist after the run.**
 
-```python
+```{code-cell} ipython3
 expected = [
     OUT_T / f"{AOI}_priority_muni_rank.csv",
     OUT_T / f"{AOI}_priority_clusters.csv",
@@ -121,7 +124,7 @@ expected = [
 
 **This cell previews the top lines of the municipality ranking (sanity check).**
 
-```python
+```{code-cell} ipython3
 import pandas as pd
 rank_path = OUT_T / f"{AOI}_priority_muni_rank.csv"
 pd.read_csv(rank_path).head(5) if rank_path.exists() else "Run Step 07 first."
@@ -129,7 +132,7 @@ pd.read_csv(rank_path).head(5) if rank_path.exists() else "Run Step 07 first."
 
 **This cell previews the top lines of the cluster KPIs (sanity check).**
 
-```python
+```{code-cell} ipython3
 clu_path = OUT_T / f"{AOI}_priority_clusters.csv"
 pd.read_csv(clu_path).head(5) if clu_path.exists() else "Run Step 11 first."
 ```

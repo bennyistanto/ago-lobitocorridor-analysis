@@ -61,11 +61,15 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 import xarray as xr
+from rasterio.features import rasterize
+from rasterio.transform import rowcol
+
 import rioxarray as rxr
 from skimage.graph import MCP_Geometric
 
 from config import (
     AOI, PATHS, PARAMS, get_logger, out_r, out_t,
+    CATCHMENTS_KPI_CSV,
 )
 from utils_geo import open_template, write_gtiff, cell_area_km2_latlon, align_to_template
 
@@ -118,17 +122,23 @@ def _burn_roads_speed(T: xr.DataArray, roads: gpd.GeoDataFrame, speeds_kmh: Dict
         if sub.empty:
             continue
         try:
-            # burn 1 where road of this class exists
-            burn = sub.rio.write_crs("EPSG:4326", inplace=True).rasterize(
-                out_shape=T.rio.shape, transform=T.rio.transform(),
-                all_touched=True, fill=0, default_value=1, dtype=np.uint8
+            # burn 1 where road of this class exists (using rasterio.features.rasterize)
+            shapes = [(geom, 1) for geom in sub.geometry if geom is not None and not geom.is_empty]
+            if not shapes:
+                continue
+            burn_arr = rasterize(
+                shapes=shapes,
+                out_shape=T.rio.shape,
+                transform=T.rio.transform(),
+                fill=0,
+                dtype="uint8",
+                all_touched=True,
             )
-            # update speed where burned
-            mask = burn.values == 1
-            arr = speed_da.values
-            # if multiple classes overlap, keep fastest
-            new_vals = np.where(mask, float(spd), np.nan)
-            arr = np.fmax(np.nan_to_num(arr, nan=0.0), np.nan_to_num(new_vals, nan=0.0))
+            # update speed where burned; keep the fastest per pixel
+            arr = speed_da.values.copy()
+            mask = (burn_arr == 1)
+            # where mask, set to max(existing, spd)
+            arr = np.where(mask, np.fmax(np.nan_to_num(arr, nan=0.0), float(spd)), arr)
             speed_da = xr.DataArray(arr.astype("float32"), coords=T.coords, dims=T.dims)
         except Exception as e:
             log.warning(f"Failed rasterizing class '{cls}': {e}")
@@ -181,8 +191,11 @@ def _build_friction_minutes_per_km(T: xr.DataArray, roads_fp: Path) -> xr.DataAr
         speed = xr.DataArray(max_speed.astype("float32"), coords=T.coords, dims=T.dims)
 
     # Convert to minutes per km
-    friction = 60.0 / np.clip(speed, 0.1, None)
-    friction.name = "minutes_per_km"
+    friction_arr = 60.0 / np.clip(speed.values, 0.1, None)
+    friction = xr.DataArray(
+        friction_arr.astype("float32"),
+        coords=T.coords, dims=T.dims, name="minutes_per_km"
+    )
     return friction
 
 
@@ -196,17 +209,31 @@ def _accumulated_minutes_from_point(friction_min_per_km: xr.DataArray,
     """
     T = friction_min_per_km
     dy_km, dx_km = _get_sampling_km(T)
-    # skimage MCP expects a 2D costs array (float32)
+
+    # skimage MCP expects a 2D costs array (float32).
+    # Treat NaN/<=0 as impassable by setting to +inf.
     costs = friction_min_per_km.values.astype("float32")
-    # start index in row/col
-    r, c = T.rio.index(start_lon, start_lat)
+    costs = np.where(np.isfinite(costs) & (costs > 0), costs, np.float32(np.inf))
+
+    # start index in row/col (use rasterio.transform.rowcol for compatibility)
+    r, c = rowcol(T.rio.transform(), start_lon, start_lat)
     if (r < 0) or (c < 0) or (r >= T.shape[0]) or (c >= T.shape[1]):
-        # point outside grid; return all-NaN
+        return xr.full_like(T, np.nan, dtype="float32")
+    if not np.isfinite(costs[r, c]):
+        # start falls on a barrier/unreachable cell
         return xr.full_like(T, np.nan, dtype="float32")
 
     mcp = MCP_Geometric(costs, sampling=(dy_km, dx_km))
-    # run to a cutoff cost to limit work
-    _, costs_arr = mcp.find_costs(starts=[(r, c)], endpoints=None, max_cost=max_cost_min)
+
+    # Version-safe call: some skimage versions don’t support `endpoints`,
+    # and some return a single array vs (costs, traceback).
+    try:
+        res = mcp.find_costs(starts=[(r, c)], max_cost=max_cost_min)
+    except TypeError:
+        # Older signature: positional args (starts, max_cost)
+        res = mcp.find_costs([(r, c)], max_cost_min)
+
+    costs_arr = res[0] if isinstance(res, (tuple, list)) else res
     acc = xr.DataArray(costs_arr.astype("float32"), coords=T.coords, dims=T.dims)
     acc = acc.where(np.isfinite(acc))  # unreachable stays NaN
     return acc
@@ -337,6 +364,21 @@ def main() -> None:
     # Save KPI table
     if kpi_rows:
         df = pd.DataFrame(kpi_rows)
+        # --- Enforce schema/dtypes so downstream checks are clean and predictable
+        num_cols = ["site_index","lon","lat","thresh_min","area_km2","pop","cropland_km2","rwi_mean","rwi_pop_weighted","mean_travel_min"]
+        for c in num_cols:
+            if c in df.columns:
+                df[c] = pd.to_numeric(df[c], errors="coerce")
+
+        # --- Optional: monotonic area check per site (30→60→120 mins non-decreasing)
+        if {"site_index","thresh_min","area_km2"}.issubset(df.columns):
+            ck = df.sort_values(["site_index","thresh_min"])
+            area_nondec = (
+                ck.groupby("site_index", group_keys=False)["area_km2"]
+                .apply(lambda s: (s.diff().fillna(0) >= -1e-6).all())
+            )
+            log.info("Catchments KPI: area monotone by site = %.0f%%", 100.0 * area_nondec.mean())
+
         out_csv = Path(CATCHMENTS_KPI_CSV)
         df.to_csv(out_csv, index=False)
         log.info(f"Wrote catchment KPIs → {out_csv.name} | rows={len(df)}")

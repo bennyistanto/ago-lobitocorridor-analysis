@@ -60,6 +60,8 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 import xarray as xr
+from rasterio.features import rasterize 
+
 import rioxarray as rxr
 from scipy.ndimage import label
 
@@ -136,15 +138,25 @@ def _admin2_label_grid(T: xr.DataArray) -> Tuple[xr.DataArray, pd.DataFrame]:
         "ADM2CD_c": uniques,
     }).merge(gdf[["ADM2_label","NAM_1","NAM_2"]].drop_duplicates(), on="ADM2_label", how="left")
 
-    # rasterize (all_touched=True for crisp boundaries)
-    # Use rioxarray's rasterize via GeoSeries accessor for simplicity:
-    labels = gdf[["ADM2_label", "geometry"]].rio.write_crs("EPSG:4326", inplace=True).rasterize(
-        out_shape=T.rio.shape, transform=T.rio.transform(), all_touched=True, fill=0, dtype=np.int64
+    # rasterize (all_touched=True for crisp boundaries) using rasterio.features.rasterize
+    # Ensure geometries are in the same CRS as T (we already set to EPSG:4326 above and T is EPSG:4326)
+    shapes = [(geom, int(val)) for geom, val in zip(gdf.geometry, gdf["ADM2_label"])]
+    arr = rasterize(
+        shapes=shapes,
+        out_shape=T.rio.shape,
+        transform=T.rio.transform(),
+        fill=0,
+        dtype="int64",
+        all_touched=True,
     )
+
+    # Wrap back into an xarray DataArray aligned to T
+    labels = xr.DataArray(arr, coords=T.coords, dims=T.dims)
     labels = labels.where(labels > 0, np.nan)
     labels.rio.write_crs(T.rio.crs, inplace=True)
     labels.rio.write_transform(T.rio.transform(), inplace=True)
     return labels, lut
+
 
 
 def _connected_components(mask: xr.DataArray) -> xr.DataArray:
@@ -381,6 +393,50 @@ def main() -> None:
         # legacy name for compatibility if any down-stream expects it
         if WRITE_PER_CELL_CLUSTER_ID:
             write_gtiff(lbl_da, PRIORITY_CLUSTERS_TIF, like=T, nodata=0)
+
+    # --- schema lock & tidy dtypes/rounding before save ---
+    iso_thresholds = tuple(getattr(PARAMS, "ISO_THRESH", (30, 60, 120)))
+    expected = [
+        "cluster_id", "area_km2", "pop", "cropland_km2",
+        "pct_electrified", "pct_rural",
+        "mean_travel_min", "drought_mean_0_1",
+        "risk_roadcells", "flood_depth_mean_m",
+        "rwi_mean",
+        "centroid_lon", "centroid_lat",
+        "ADM2CD_c", "NAM_1", "NAM_2",
+    ] + [f"share_le_{int(thr)}m" for thr in iso_thresholds]
+
+    for c in expected:
+        if c not in df.columns:
+            df[c] = np.nan
+
+    # dtypes/rounding
+    ints = ["cluster_id", "risk_roadcells"]
+    for c in ints:
+        df[c] = pd.to_numeric(df[c], errors="coerce").round(0).astype("Int64")
+
+    floats_1 = ["mean_travel_min", "flood_depth_mean_m"]
+    for c in floats_1:
+        df[c] = pd.to_numeric(df[c], errors="coerce").astype("float64").round(1)
+
+    floats_2 = ["area_km2", "cropland_km2", "rwi_mean"]
+    for c in floats_2:
+        df[c] = pd.to_numeric(df[c], errors="coerce").astype("float64").round(2)
+
+    df["pop"] = pd.to_numeric(df["pop"], errors="coerce").astype("float64").round(0)
+
+    for c in ("pct_electrified", "pct_rural", "drought_mean_0_1"):
+        df[c] = pd.to_numeric(df[c], errors="coerce").clip(0.0, 1.0).astype("float64").round(3)
+
+    for c in ("centroid_lon", "centroid_lat"):
+        df[c] = pd.to_numeric(df[c], errors="coerce").astype("float64").round(5)
+
+    for thr in iso_thresholds:
+        col = f"share_le_{int(thr)}m"
+        df[col] = pd.to_numeric(df[col], errors="coerce").clip(0.0, 1.0).astype("float64").round(3)
+
+    # final column order
+    df = df[expected]
 
     out_csv = out_t("priority_clusters")
     df.to_csv(out_csv, index=False)
