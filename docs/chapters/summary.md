@@ -232,7 +232,7 @@ Quadrant Statistics
 
 :::{tab-item} Moxico Leste
 :sync: key5
-![S2-Moxico Leste]()
+![S2-MoxicoLeste]()
 :::
 ::::
 
@@ -312,7 +312,7 @@ and corridor infrastructure.
 ::::{tab-set}
 :::{tab-item} Benguela
 :sync: key1
-
+![S3-Benguela]()
 :::
 
 :::{tab-item} Huambo
@@ -322,17 +322,17 @@ and corridor infrastructure.
 
 :::{tab-item} Bie
 :sync: key3
-
+![S3-Bie]()
 :::
 
 :::{tab-item} Moxico
 :sync: key4
-
+![S3-Moxico]()
 :::
 
 :::{tab-item} Moxico Leste
 :sync: key5
-
+![S3-MoxicoLeste]()
 :::
 ::::
 
@@ -401,7 +401,7 @@ within 10 km, and color encodes the dominant financier.
 ::::{tab-set}
 :::{tab-item} Benguela
 :sync: key1
-
+![S4-Benguela]()
 :::
 
 :::{tab-item} Huambo
@@ -411,19 +411,20 @@ within 10 km, and color encodes the dominant financier.
 
 :::{tab-item} Bie
 :sync: key3
-
+![S4-Bie]()
 :::
 
 :::{tab-item} Moxico
 :sync: key4
-
+![S4-Moxico]()
 :::
 
 :::{tab-item} Moxico Leste
 :sync: key5
-
+![S4-MoxicoLeste]()
 :::
 ::::
+
 ---
 
 ## 5. How does movement along the corridor reinforce these priorities?
@@ -444,9 +445,17 @@ We summarize:
 > *To be generated from `{AOI}_od_gravity.csv` and `{AOI}_od_zone_attrs.csv`.*
 
 | Province (AOI) | Origin Admin2 | Destination Admin2 | Modelled flow (relative) | Distance (km) | Both in top priority mask? |
-| -------------- | ------------- | ------------------ | ------------------------ | ------------- | --------------------------- |
-| Huambo         | …             | …                  | …                        | …             | Yes / No                    |
-| …              | …             | …                  | …                        | …             | …                           |
+| ---- | ---- | ---- | ---- | ---- | ---- |
+| Huambo | Caala    | Huambo              | 97938.8  | 55.7  | N/A  |
+| Huambo | Bailundo | Huambo              | 55540.2  | 96.8  | N/A  |
+| Huambo | Huambo   | Tchikala-tcholoanga | 49511.4  | 35.9  | N/A  |
+| Huambo | Huambo   | Katchiungo          | 41293.9  | 57.3  | N/A  |
+| Huambo | Ekunha   | Huambo              | 33430.5  | 45.8  | N/A  |
+| Huambo | Huambo   | Londuimbali         | 31016.6  | 84.9  | N/A  |
+| Huambo | Huambo   | Longonjo            | 26294.1  | 68.8  | N/A  |
+| Huambo | Bailundo | Mungo               | 18917.9  | 44.4  | N/A  |
+| Huambo | Bailundo | Londuimbali         | 16082.6  | 68.6  | N/A  |
+| Huambo | Huambo   | Ukuma               | 15144.4  | 70.5  | N/A  |
 
 ::::{tab-set}
 :::{tab-item} Benguela
@@ -475,34 +484,34 @@ We summarize:
 :::
 ::::
 
-> **Figure S5. OD flows and priority clusters along the corridor**  
+> **Figure S5. Origin-Destination flows and priority clusters along the corridor**  
 > *Static map showing thick OD arcs for the top flows, overlaid on the
 > priority clusters and corridor infrastructure.*
 
 ::::{tab-set}
 :::{tab-item} Benguela
 :sync: key1
-
+![S5-Benguela]()
 :::
 
 :::{tab-item} Huambo
 :sync: key2
-
+![S5-Huambo](../../outputs/figs/huambo_fig_s5_od_flows.png)
 :::
 
 :::{tab-item} Bie
 :sync: key3
-
+![S5-Bie]()
 :::
 
 :::{tab-item} Moxico
 :sync: key4
-
+![S5-Moxico]()
 :::
 
 :::{tab-item} Moxico Leste
 :sync: key5
-
+![S5-MoxicoLeste]()
 :::
 ::::
 
