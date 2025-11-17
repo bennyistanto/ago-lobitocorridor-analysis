@@ -52,13 +52,13 @@ include = [
     "src/**/*"
 ]
 
+[tool.hatch.build.targets.wheel]
+include = [
+    "src/**/*"
+]
+
 [tool.hatch.version]
 source = "vcs"
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
-
-[tool.hatch.build.targets.wheel]
-include = [
-    "src/**/*"
-]
