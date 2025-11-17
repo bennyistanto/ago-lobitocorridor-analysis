@@ -42,6 +42,12 @@ parts:
       - file: docs/chapters/15-appendix
         title: Appendix (for analysts)
 
+  - caption: Summary & results
+    chapters:
+      - file: docs/chapters/summary
+        title: Corridor-wide results & summary
+
+
   - caption: Reference (Code & Data)
     chapters:
       - file: docs/references/all-code

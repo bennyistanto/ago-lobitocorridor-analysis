@@ -444,6 +444,18 @@ REFERENCE_POINTS = [
 # 7) Parameters / knobs (frozen dataclass)
 # ======================================================================
 
+def _sanitize_radii(vals) -> tuple[int, ...]:
+    """
+    Normalize a list/tuple of radii (km) to a sorted, unique, positive tuple.
+
+    - If vals is None or empty, fall back to (5, 10, 30).
+    - Any non-positive values are dropped.
+    """
+    if vals is None:
+        return (5, 10, 30)
+    cleaned = {int(r) for r in vals if int(r) > 0}
+    return tuple(sorted(cleaned)) or (5, 10, 30)
+
 @dataclass(frozen=True)
 class Params:
     """All knobs in one place for repeatability."""
@@ -479,11 +491,7 @@ class Params:
     TOP_KM2: float | None
     # radii in km for site/cluster counts
     SYNERGY_RADII_KM: tuple[int, ...]    # e.g., (5, 10, 30)
-    # When constructing PARAMS (with a small sanitizer)
-    def _sanitize_radii(vals):
-        return tuple(sorted({int(r) for r in (vals or []) if int(r) > 0})) or (5, 10, 30)
-
-
+    
     # --- Overlay weights (used only if overlays present) ---
     W_POV: float               # poverty (0..1)
     W_FOOD: float              # food insecurity (0..1)

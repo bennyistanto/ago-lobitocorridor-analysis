@@ -1,0 +1,6 @@
+AOI,ADM2CD_c,NAM_1,NAM_2,score,poverty_rural,food_insec_scale,mean_travel_time_min,pct_electrified,share_province_priority_pct
+huambo,AGO009007,Huambo,Longonjo,0.549,0.616,0.73,286.19,0.005,0.0
+huambo,AGO009002,Huambo,Caala,0.509,0.635,0.663,71.65,0.024,49.16
+huambo,AGO009008,Huambo,Mungo,0.469,0.673,0.692,182.182,0.004,0.0
+huambo,AGO009006,Huambo,Londuimbali,0.463,0.65,0.644,351.733,0.009,0.0
+huambo,AGO009003,Huambo,Ekunha,0.394,0.683,0.685,61.163,0.006,0.0
