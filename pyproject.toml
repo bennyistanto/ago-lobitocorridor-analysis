@@ -57,3 +57,8 @@ source = "vcs"
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
+
+[tool.hatch.build.targets.wheel]
+include = [
+    "src/**/*"
+]
