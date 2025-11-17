@@ -58,7 +58,7 @@ segments, rather than being evenly spread across all municipalities.
 
 :::{tab-item} Huambo
 :sync: key2
-![S1-Huambo](../../outputs/figs/fig_s1_priority_clusters_huambo_adm2_roads.png)
+![S1-Huambo](../../outputs/figs/huambo_fig_s1_priority_clusters_adm2_roads.png)
 :::
 
 :::{tab-item} Bie
@@ -204,7 +204,7 @@ the corridor, dividing municipalities into four quadrants:
 
 :::{tab-item} Huambo
 :sync: key2
-![S2-Huambo](../../outputs/figs/fig_s2_priority_vs_poverty_scatter.png)
+![S2-Huambo](../../outputs/figs/huambo_fig_s2_priority_vs_poverty_scatter.png)
 
 Quadrant Statistics
 
@@ -317,7 +317,7 @@ and corridor infrastructure.
 
 :::{tab-item} Huambo
 :sync: key2
-[S3-Huambo](../../outputs/figs/huambo_fig_s3_catchments_union.png)
+![S3-Huambo](../../outputs/figs/huambo_fig_s3_catchments_union.png)
 :::
 
 :::{tab-item} Bie
@@ -369,8 +369,8 @@ number of nearby projects** in a given radius.
 
 | Province (AOI) | Cluster ID | Projects within 10 km (Gov) | Projects within 10 km (WB) | Projects within 10 km (Other) | Total projects within 10 km |
 | ---- | ---- | ---- | ---- | ---- | ---- |
-| Huambo         | … | … | … | … | … |
-| …              | … | … | … | … | … |
+| Huambo         | 1 | 0 | 23 | 0 | 23 |
+| Huambo         | 2 | 0 | 14 | 0 | 14 |
 
 :::
 
@@ -398,7 +398,6 @@ within 10 km, and color encodes the dominant financier.
 > *Static map with cluster markers sized by project counts within 10 km,
 > colored by dominant project type (Gov / WB / Other).*
 
-
 ::::{tab-set}
 :::{tab-item} Benguela
 :sync: key1
@@ -407,7 +406,7 @@ within 10 km, and color encodes the dominant financier.
 
 :::{tab-item} Huambo
 :sync: key2
-
+![S4-Huambo](../../outputs/figs/huambo_fig_s4_cluster_synergies_30km.png)
 :::
 
 :::{tab-item} Bie

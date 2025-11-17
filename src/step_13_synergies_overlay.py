@@ -104,12 +104,26 @@ except Exception:
 
 _G = Geod(ellps="WGS84")
 
+def _xy_arrays(g: gpd.GeoDataFrame) -> tuple[np.ndarray, np.ndarray]:
+    """Return (lon, lat) as strict 1D float64 arrays, same length, finite-only indices kept."""
+    if g.empty:
+        return np.array([], dtype="float64"), np.array([], dtype="float64")
+    x = np.asarray(g.geometry.x, dtype="float64")
+    y = np.asarray(g.geometry.y, dtype="float64")
+    m = np.isfinite(x) & np.isfinite(y)
+    return x[m], y[m]
+
+
 def _geodesic_km(lon1: np.ndarray, lat1: np.ndarray, lon2: np.ndarray, lat2: np.ndarray) -> np.ndarray:
     """
     Vectorized geodesic distance (km) using WGS84 ellipsoid.
     Inputs can be scalars or arrays (numpy broadcasting applies).
     """
     # _G.inv returns (fwd_az, back_az, distance_m)
+    lon1 = np.asarray(lon1, dtype="float64")
+    lat1 = np.asarray(lat1, dtype="float64")
+    lon2 = np.asarray(lon2, dtype="float64")
+    lat2 = np.asarray(lat2, dtype="float64")
     _, _, dist_m = _G.inv(lon1, lat1, lon2, lat2)
     return dist_m / 1000.0
 
@@ -188,41 +202,79 @@ def _nearest_and_counts(
     For each origin point, compute:
       - nearest distance (km) to any target (np.nan if no targets)
       - count of targets within each radius (km)
+
     Returns:
       nearest_km: shape (N_origins,)
       counts: dict radius_km -> array (N_origins,)
     """
     n = len(origins)
-    if targets.empty or n == 0:
+
+    # sanitize coords → compact arrays for computation
+    o_lon, o_lat = _xy_arrays(origins)
+    t_lon, t_lat = _xy_arrays(targets)
+
+    # Map back to original index positions (so outputs align with 'origins')
+    orig_idx = np.nonzero(
+        np.isfinite(np.asarray(origins.geometry.x)) &
+        np.isfinite(np.asarray(origins.geometry.y))
+    )[0]
+
+    if o_lon.size == 0 or t_lon.size == 0 or orig_idx.size == 0:
         nearest = np.full(n, np.nan, dtype="float32")
         counts = {r: np.zeros(n, dtype="int32") for r in radii_km}
         return nearest, counts
 
-    # Build arrays (lon/lat) for vectorized geodesic distance
-    o_lon = origins.geometry.x.values
-    o_lat = origins.geometry.y.values
-    t_lon = targets.geometry.x.values
-    t_lat = targets.geometry.y.values
-
-    # nearest distance: compute in chunks to control memory if needed
     nearest = np.full(n, np.inf, dtype="float32")
-    chunk = max(1, int(5000 / max(1, len(t_lon))))  # heuristic; small chunks if many targets
-    for i0 in range(0, n, chunk):
-        i1 = min(n, i0 + chunk)
-        # distances matrix (i1-i0, M)
-        D = _geodesic_km(o_lon[i0:i1, None], o_lat[i0:i1, None], t_lon[None, :], t_lat[None, :])
-        nearest[i0:i1] = np.min(D, axis=1).astype("float32")
+    counts = {r: np.zeros(n, dtype="int32") for r in radii_km}
 
-    # counts by radii
-    counts = {}
+    chunk = max(1, int(5000 / max(1, t_lon.size)))
+
+    # --- nearest distance ----------------------------------------------------
+    for i0 in range(0, o_lon.size, chunk):
+        i1 = min(o_lon.size, i0 + chunk)
+        try:
+            D = _geodesic_km(
+                o_lon[i0:i1, None],
+                o_lat[i0:i1, None],
+                t_lon[None, :],
+                t_lat[None, :],
+            )
+        except Exception:
+            # Fallback: per-origin call with equal-length 1D arrays
+            D = np.empty((i1 - i0, t_lon.size), dtype="float64")
+            for k, oi in enumerate(range(i0, i1)):
+                lon1 = np.full(t_lon.size, o_lon[oi], dtype="float64")
+                lat1 = np.full(t_lon.size, o_lat[oi], dtype="float64")
+                _, _, dist_m = _G.inv(lon1, lat1, t_lon, t_lat)
+                D[k, :] = dist_m / 1000.0
+
+        nearest[orig_idx[i0:i1]] = np.min(D, axis=1).astype("float32")
+
+    # --- counts within each radius ------------------------------------------
     for r in radii_km:
-        c = np.zeros(n, dtype="int32")
-        # chunked again
-        for i0 in range(0, n, chunk):
-            i1 = min(n, i0 + chunk)
-            D = _geodesic_km(o_lon[i0:i1, None], o_lat[i0:i1, None], t_lon[None, :], t_lat[None, :])
-            c[i0:i1] = (D <= float(r)).sum(axis=1).astype("int32")
-        counts[r] = c
+        c_compact = np.zeros(o_lon.size, dtype="int32")
+        for i0 in range(0, o_lon.size, chunk):
+            i1 = min(o_lon.size, i0 + chunk)
+            try:
+                D = _geodesic_km(
+                    o_lon[i0:i1, None],
+                    o_lat[i0:i1, None],
+                    t_lon[None, :],
+                    t_lat[None, :],
+                )
+            except Exception:
+                # Same fallback as above
+                D = np.empty((i1 - i0, t_lon.size), dtype="float64")
+                for k, oi in enumerate(range(i0, i1)):
+                    lon1 = np.full(t_lon.size, o_lon[oi], dtype="float64")
+                    lat1 = np.full(t_lon.size, o_lat[oi], dtype="float64")
+                    _, _, dist_m = _G.inv(lon1, lat1, t_lon, t_lat)
+                    D[k, :] = dist_m / 1000.0
+
+            c_compact[i0:i1] = (D <= float(r)).sum(axis=1).astype("int32")
+
+        counts[r][orig_idx] = c_compact
+
     return nearest, counts
 
 
@@ -301,12 +353,24 @@ def main() -> None:
         # Load cluster centroids (from Step 11 CSV)
         df_c = pd.read_csv(clust_csv)
         if {"cluster_id", "centroid_lon", "centroid_lat"}.issubset(df_c.columns) and len(df_c):
-            # Make GeoDataFrame of centroids
+            # Make GeoDataFrame of centroids (drop rows with NaN coords)
+            cent = df_c[["cluster_id", "centroid_lon", "centroid_lat"]].copy()
+            cent["centroid_lon"] = pd.to_numeric(cent["centroid_lon"], errors="coerce")
+            cent["centroid_lat"] = pd.to_numeric(cent["centroid_lat"], errors="coerce")
+            cent = cent[np.isfinite(cent["centroid_lon"]) & np.isfinite(cent["centroid_lat"])].copy()
+
+            if len(cent) == 0:
+                log.info("No valid cluster centroids (all NaN?). Skipping cluster synergies.")
+                return
+
             g_cent = gpd.GeoDataFrame(
-                df_c[["cluster_id", "centroid_lon", "centroid_lat"]].copy(),
-                geometry=[Point(xy) for xy in zip(df_c["centroid_lon"], df_c["centroid_lat"])],
+                cent,
+                geometry=[Point(xy) for xy in zip(cent["centroid_lon"], cent["centroid_lat"])],
                 crs="EPSG:4326",
             )
+            # also drop any empty/null geometry just in case
+            g_cent = g_cent[~g_cent.geometry.is_empty & g_cent.geometry.notnull()].copy()
+
 
             # Reuse nearest/counts
             cg, cg_counts = _nearest_and_counts(g_cent, g_gov, SYNERGY_RADII_KM)
@@ -314,13 +378,14 @@ def main() -> None:
             co, co_counts = _nearest_and_counts(g_cent, g_oth, SYNERGY_RADII_KM)
 
             df_cluster = pd.DataFrame({
-                "cluster_id": df_c["cluster_id"].values.astype("int32"),
-                "lon": df_c["centroid_lon"].values.astype("float64"),
-                "lat": df_c["centroid_lat"].values.astype("float64"),
+                "cluster_id": cent["cluster_id"].values.astype("int32"),
+                "lon": cent["centroid_lon"].values.astype("float64"),
+                "lat": cent["centroid_lat"].values.astype("float64"),
                 "dist_km_nearest_gov": cg,
                 "dist_km_nearest_wb":  cw,
                 "dist_km_nearest_oth": co,
             })
+
             for r in SYNERGY_RADII_KM:
                 df_cluster[f"count_gov_le{r}km"] = cg_counts[r]
                 df_cluster[f"count_wb_le{r}km"]  = cw_counts[r]
