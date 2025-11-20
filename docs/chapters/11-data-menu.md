@@ -34,7 +34,7 @@ import os, sys
 from pathlib import Path
 
 ROOT = Path(os.getenv("PROJECT_ROOT", "."))
-AOI  = os.getenv("AOI", "moxico")
+AOI  = os.getenv("AOI", "huambo")
 sys.path.append(str(ROOT / "src"))
 
 from config import PATHS, ADMIN2_THEMES, THEME_VARS

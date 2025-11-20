@@ -44,7 +44,7 @@ import pandas as pd
 from pathlib import Path
 
 ROOT = Path(os.getenv("PROJECT_ROOT", "."))
-AOI  = os.getenv("AOI", "moxico")
+AOI  = os.getenv("AOI", "huambo")
 OUT_T = ROOT / "outputs" / "tables"
 
 syn_sites    = pd.read_csv(OUT_T / f"{AOI}_site_synergies.csv")

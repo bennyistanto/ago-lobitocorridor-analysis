@@ -39,7 +39,7 @@ import pandas as pd
 from pathlib import Path
 
 ROOT = Path(os.getenv("PROJECT_ROOT", "."))
-AOI  = os.getenv("AOI", "moxico")
+AOI  = os.getenv("AOI", "huambo")
 OUT  = ROOT / "outputs" / "tables"
 
 rank = pd.read_csv(OUT / f"{AOI}_priority_muni_rank.csv").sort_values("score", ascending=False)

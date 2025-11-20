@@ -64,7 +64,7 @@ import pprint
 from dataclasses import asdict
 
 ROOT = Path(os.getenv("PROJECT_ROOT", "."))
-AOI  = os.getenv("AOI", "moxico")
+AOI  = os.getenv("AOI", "huambo")
 
 # We only read/print; parameters are defined in src/config.py
 import sys

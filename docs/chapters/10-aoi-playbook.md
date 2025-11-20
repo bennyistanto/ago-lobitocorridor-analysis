@@ -38,7 +38,7 @@ from pathlib import Path
 
 # ⚙️ Set these two once per session (or export as env vars before launching Jupyter):
 os.environ.setdefault("PROJECT_ROOT", "/mnt/d/temp/wbg/iso3/ago/lobito-corridor")
-os.environ.setdefault("AOI", "moxico")  # e.g., "benguela", "huambo", "bie", "moxico", "moxicoleste"
+os.environ.setdefault("AOI", "huambo")  # e.g., "benguela", "huambo", "bie", "moxico", "moxicoleste"
 
 ROOT = Path(os.getenv("PROJECT_ROOT"))
 AOI  = os.getenv("AOI")

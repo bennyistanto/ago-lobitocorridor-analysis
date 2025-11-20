@@ -44,7 +44,7 @@ import pandas as pd
 from pathlib import Path
 
 ROOT = Path(os.getenv("PROJECT_ROOT", "."))
-AOI  = os.getenv("AOI", "moxico")
+AOI  = os.getenv("AOI", "huambo")
 OUT  = ROOT / "outputs" / "tables"
 
 summary_path = OUT / f"{AOI}_priority_scenarios_summary.csv"
@@ -67,7 +67,7 @@ import pandas as pd
 from pathlib import Path
 
 ROOT = Path(os.getenv("PROJECT_ROOT", "."))
-AOI  = os.getenv("AOI", "moxico")
+AOI  = os.getenv("AOI", "huambo")
 OUT  = ROOT / "outputs" / "tables"
 
 summary_path = OUT / f"{AOI}_priority_scenarios_summary.csv"

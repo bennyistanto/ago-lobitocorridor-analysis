@@ -35,7 +35,7 @@ from dataclasses import asdict
 import pprint as _pp
 
 ROOT = Path(os.getenv("PROJECT_ROOT", "."))
-AOI  = os.getenv("AOI", "moxico")
+AOI  = os.getenv("AOI", "huambo")
 sys.path.append(str(ROOT / "src"))
 
 from config import PARAMS
