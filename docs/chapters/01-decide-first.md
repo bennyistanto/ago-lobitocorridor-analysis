@@ -35,7 +35,7 @@ Run: **07 → 10 (optional scenarios) → 11 (clusters)** once. This chapter onl
 
 **This cell loads the cluster KPIs table from `/outputs` for the current AOI (no recomputation).**
 
-```{code-cell} ipython3
+```{code-cell} python
 import os
 import pandas as pd
 from pathlib import Path
