@@ -12,7 +12,41 @@ from the data, not from ad hoc methods.
 
 > The flowchart below summarises the data sources, processing steps, and outputs used to generate the tables and figures in this section. It is mainly intended for readers who want to understand the underlying workflow.
 
-![flow-top](../../outputs/figs/summary_all.png)
+```mermaid
+---
+config:
+  layout: elk
+---
+flowchart TB
+ subgraph Inputs["Inputs"]
+        A1["Access data: roads & travel times"]
+        A2["Poverty and food insecurity data"]
+        A3["Population and cropland grids"]
+        A4["Projects and candidate sites"]
+  end
+ subgraph Core_Analysis["Core analysis steps"]
+        B1["Step 07: 1 km priority surface"]
+        B2["Steps 06 & 09: Admin2 indicators and scores"]
+        B3["Step 11: Priority clusters"]
+        B4["Step 12: Catchments (30 / 60 / 120 min)"]
+        B5["Step 13: Project synergies"]
+        B6["Step 14: OD-lite flows"]
+  end
+ subgraph Outputs["Outputs"]
+        C1["Summary tables S1–S5"]
+        C2["Maps and dashboard views"]
+  end
+    A1 --> B1
+    A2 --> B2
+    A3 --> B1 & B4
+    A4 --> B4 & B5
+    B1 --> B2 & B3
+    B2 --> B3 & B6
+    B3 --> B4 & B5 & C2
+    B4 --> C1 & C2
+    B5 --> C1 & C2
+    B6 --> C1 & C2
+```
 
 ---
 
@@ -27,9 +61,39 @@ most of the potential beneficiaries. These clusters represent places where:
 - there is enough **population and cropland** to justify coordinated
   investments.
 
-> Figure S1-flow provides a schematic of how the 1-km priority surface, population, and cropland data are combined to identify priority clusters and produce Table S1 and Figure S1.
+> Flowchart below provides a schematic of how the 1-km priority surface, population, and cropland data are combined to identify priority clusters and produce Table S1 and Figure S1.
 
-![flow-s1](../../outputs/figs/summary_1.png)
+```mermaid
+flowchart TB
+ subgraph S4_inputs["Inputs"]
+        s4i1["1 km priority surface (Step 07)"]
+        s4i2["Population grid"]
+        s4i3["Cropland grid"]
+        s4i4["Admin1/Admin2 boundaries"]
+  end
+ subgraph S4_process["Processing"]
+        s4p1["Apply top 10% threshold to priority surface"]
+        s4p2["Identify contiguous priority clusters"]
+        s4p3["Compute cluster stats: area, people, cropland"]
+        s4p4["Aggregate to province level for summary table"]
+  end
+ subgraph S4_outputs["Outputs for Slide 4"]
+        s4o1["Table S1: priority clusters by province"]
+        s4o2["Figure S1: map of priority clusters along corridor"]
+        s4o3["Messages on where needs and opportunities stack"]
+  end
+    s4i1 --> s4p1
+    s4i2 --> s4p3
+    s4i3 --> s4p3
+    s4i4 --> s4p2
+    s4p1 --> s4p2
+    s4p2 --> s4p3 & s4o2
+    s4p3 --> s4p4
+    s4p4 --> s4o1
+    s4o1 --> s4o3
+    s4o2 --> s4o3
+```
+
 
 **Table S1** below summarizes, for each province and its top clusters:
 
@@ -107,9 +171,46 @@ For each province, we compute a **composite Admin2 score** that combines:
 This gives a single 0–1 score that can be compared across municipalities
 within the same province.
 
-> Figure S2-flow outlines how municipality-level indicators are normalised and combined into a composite score, and how this links to the quadrant analysis of priority score versus rural poverty used for Table S2 and Figure S2.
+> Flowchart below outlines how municipality-level indicators are normalised and combined into a composite score, and how this links to the quadrant analysis of priority score versus rural poverty used for Table S2 and Figure S2.
 
-![flow-s2](../../outputs/figs/summary_2.png)
+```mermaid
+---
+config:
+  layout: dagre
+---
+flowchart TB
+ subgraph S5_inputs["Inputs"]
+        s5i1["Admin2 indicators: poverty, food insecurity, travel time, electrification, RWI"]
+        s5i2["Share of municipality in priority mask"]
+        s5i3["Admin2 lookup and names"]
+  end
+ subgraph S5_process["Processing"]
+        s5p1["Normalise indicators to common 0 to 1 scale"]
+        s5p2["Compute composite Admin2 score"]
+        s5p3["Rank municipalities within each province"]
+        s5p4["Compare score vs rural poverty to define quadrants"]
+        s5p5["Estimate rural poor by municipality"]
+        s5p6["Summarise rural poor shares by quadrant"]
+  end
+ subgraph S5_outputs["Outputs for Summary 2"]
+        s5o1["Table S2: top municipalities by composite score"]
+        s5o2["Figure S2: score vs rural poverty scatter"]
+        s5o3["Quadrant summary: counts and share of rural poor"]
+        s5o4["Equity messages: alignment and under prioritised areas"]
+  end
+    s5i1 --> s5p1
+    s5i2 --> s5p2
+    s5i3 --> s5p3
+    s5p1 --> s5p2
+    s5p2 --> s5p3 & s5p4
+    s5p4 --> s5p5 & s5o2
+    s5p5 --> s5p6
+    s5p3 --> s5o1
+    s5p6 --> s5o3
+    s5o1 --> s5o4
+    s5o2 --> s5o4
+    s5o3 --> s5o4
+```
 
 **Table S2** highlights, for each province, the **top-ranked municipalities**
 and how they compare against the provincial average on key equity and
@@ -271,9 +372,47 @@ This allows us to compare:
 - sites that unlock **remote hinterlands** (large 120-min coverage), and
 - how well these benefits align with the priority clusters.
 
-> Figure S3-flow summarises the catchment analysis steps used to estimate people and cropland within 30/60/120 minutes of each site, and how these metrics feed into Table S3 and Figure S3.
+> Flowchart below summarises the catchment analysis steps used to estimate people and cropland within 30/60/120 minutes of each site, and how these metrics feed into Table S3 and Figure S3.
 
-![flow-s3](../../outputs/figs/summary_3.png)
+```mermaid
+---
+config:
+  layout: dagre
+---
+flowchart TB
+ subgraph S6_inputs["Inputs"]
+        s6i1["Candidate sites and hubs"]
+        s6i2["Travel time surface and network"]
+        s6i3["Population grid"]
+        s6i4["Cropland grid"]
+        s6i5["Priority clusters and mask"]
+  end
+ subgraph S6_process["Processing"]
+        s6p1["Build 30, 60, 120 minute isochrones per site"]
+        s6p2["Compute people and cropland within each isochrone"]
+        s6p3["Rank sites by 60 minute population coverage"]
+        s6p4["Compute share of provincial population per site"]
+        s6p5["Union catchments for top sites by threshold"]
+        s6p6["Overlay unions with priority clusters and corridor"]
+  end
+ subgraph S6_outputs["Outputs for Summary 3"]
+        s6o1["Table S3: top sites by 60 minute catchment"]
+        s6o2["Figure S3: union catchments and clusters map"]
+        s6o3["Messages on quick wins and remote hinterlands"]
+  end
+    s6i1 --> s6p1
+    s6i2 --> s6p1
+    s6i3 --> s6p2
+    s6i4 --> s6p2
+    s6i5 --> s6p6
+    s6p1 --> s6p2
+    s6p2 --> s6p3 & s6p4
+    s6p3 --> s6p5 & s6o1
+    s6p5 --> s6p6
+    s6p6 --> s6o2
+    s6o1 --> s6o3
+    s6o2 --> s6o3
+```
 
 **Table S3** aggregates, for each province, the sites with the largest
 **60-minute catchments**, showing:
@@ -394,9 +533,44 @@ the corridor. At tighter radii (≤10 km), many clusters currently have few
 or no overlapping projects, indicating that synergies mostly emerge at
 the wider corridor scale rather than right next to cluster centroids.
 
-> Figure S4-flow shows how project locations from Government, the World Bank, and other partners are overlaid around priority clusters to construct the project density metrics presented in Table S4 and Figure S4. For provinces where synergies could not be computed, this flowchart represents the intended workflow.
+> Flowchart below shows how project locations from Government, the World Bank, and other partners are overlaid around priority clusters to construct the project density metrics presented in Table S4 and Figure S4. For provinces where synergies could not be computed, this flowchart represents the intended workflow.
 
-![flow-s4](../../outputs/figs/summary_4.png)
+```mermaid
+---
+config:
+  layout: dagre
+---
+flowchart TB
+ subgraph S7_inputs["Inputs"]
+        s7i1["Priority clusters and centroids"]
+        s7i2["Government project locations"]
+        s7i3["World Bank project locations"]
+        s7i4["Other partners project locations"]
+        s7i5["User chosen distance thresholds, for example 10 km or 30 km"]
+  end
+ subgraph S7_process["Processing"]
+        s7p1["Count projects by type within each radius around clusters"]
+        s7p2["Compute total projects per cluster and radius"]
+        s7p3["Identify high opportunity nodes with many nearby projects"]
+        s7p4["Flag isolated clusters with few projects nearby"]
+        s7p5["Prepare summary table for chosen radius"]
+  end
+ subgraph S7_outputs["Outputs for Summary 4"]
+        s7o1["Table S4: clusters with highest project density"]
+        s7o2["Figure S4: map of cluster rings and nearby projects"]
+        s7o3["Messages on bundling opportunities and gaps"]
+  end
+    s7i1 --> s7p1
+    s7i2 --> s7p1
+    s7i3 --> s7p1
+    s7i4 --> s7p1
+    s7i5 --> s7p1
+    s7p1 --> s7p2
+    s7p2 --> s7p3 & s7p4 & s7p5 & s7o2
+    s7p5 --> s7o1
+    s7o1 --> s7o3
+    s7o2 --> s7o3
+```
 
 **Table S4** lists, for each province, the **clusters with the highest
 number of nearby projects** within 30 km.
@@ -506,9 +680,42 @@ We summarize:
   **priority clusters and top-ranked Admin2s**, and
 - whether **both ends of a flow** lie inside the **top priority mask**.
 
-> Figure S5-flow summarises how the OD-Lite gravity model uses population, distances, and zone attributes to generate OD flows, and how these are aggregated into the high-throughput pairs shown in Table S5 and the OD map in Figure S5.
+> Flowchart below summarises how the OD-Lite gravity model uses population, distances, and zone attributes to generate OD flows, and how these are aggregated into the high-throughput pairs shown in Table S5 and the OD map in Figure S5.
 
-![flow-s5](../../outputs/figs/summary_5.png)
+```mermaid
+---
+config:
+  layout: elk
+---
+flowchart TB
+ subgraph S8_inputs["Inputs"]
+        s8i1["OD zones and centroids by Admin2"]
+        s8i2["Population and optional RWI by zone"]
+        s8i3["Inter zone distances"]
+        s8i4["Priority mask and Admin2 priority flag"]
+  end
+ subgraph S8_process["Processing"]
+        s8p1["Run gravity model to estimate OD flows"]
+        s8p2["Symmetrise and aggregate flows to undirected pairs"]
+        s8p3["Rank OD pairs by modelled flow"]
+        s8p4["Compute throughput per municipality from in flows and out flows"]
+        s8p5["Flag pairs where both ends are in top priority mask"]
+  end
+ subgraph S8_outputs["Outputs for Summary 5"]
+        s8o1["Table S5: high throughput municipality pairs"]
+        s8o2["Figure S5: OD flows overlaid on priority clusters"]
+        s8o3["Messages on key movement corridors and priority alignment"]
+  end
+    s8i1 --> s8p1
+    s8i2 --> s8p1
+    s8i3 --> s8p1
+    s8i4 --> s8p5
+    s8p1 --> s8p2
+    s8p2 --> s8p3 & s8p4
+    s8p3 --> s8p5 & s8o1 & s8o2
+    s8o1 --> s8o3
+    s8o2 --> s8o3
+```
 
 > **Table S5. High-throughput municipality pairs**  
 > *Generated from `{AOI}_od_gravity.csv` and `{AOI}_od_zone_attrs.csv`, including a
