@@ -61,6 +61,7 @@ from config import (
     PRIORITY_TOP10_TIF,
     RESAMPLE_DEFAULT_CONT, RESAMPLE_DEFAULT_CAT,
     WRITE_JSON_SIDECARS, write_geo_sidecar,
+    MUNI_TT_FIELD_MINUTES,
 )
 
 from utils_geo import (
@@ -157,7 +158,7 @@ def _find_optional_muni_rasters(T: xr.DataArray) -> Dict[str, xr.DataArray]:
     cand = {
         "poverty": out_r("muni_poverty_poverty_rural_1km"),
         "food": out_r("muni_foodinsecurity_food_insec_scale_1km"),
-        "muni_tt": out_r("muni_traveltime_avg_hours_to_market_financial_1km"),
+        "muni_tt": out_r(f"muni_traveltime_{MUNI_TT_FIELD_MINUTES}_1km"),
     }
     out = {}
     for k, p in cand.items():

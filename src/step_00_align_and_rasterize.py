@@ -30,7 +30,6 @@ import rioxarray as rxr
 from config import (
     PATHS, PARAMS, out_r, get_logger, 
     ADMIN2_ID_TIF, ADMIN2_LUT_CSV,
-    RESAMPLE
 )
 
 from utils_geo import (

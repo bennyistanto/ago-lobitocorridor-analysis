@@ -1,0 +1,6 @@
+Province (AOI),Municipality (Admin2),Composite score (0–1),Rural poverty index,Food insecurity index,Mean travel time (min),% electrified,Share of province priority area (%)
+huambo,Ekunha,0.708,0.683,0.685,61.163,16.3,0.0
+huambo,Huambo,0.703,0.509,0.675,39.249,12.0,50.827
+huambo,Caala,0.665,0.635,0.663,71.65,37.6,49.173
+huambo,Bailundo,0.619,0.608,0.626,105.837,26.7,0.0
+huambo,Katchiungo,0.608,0.649,0.63,91.717,51.9,0.0

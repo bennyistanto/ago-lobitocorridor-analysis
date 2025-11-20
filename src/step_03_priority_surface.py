@@ -30,7 +30,12 @@ import numpy as np
 import xarray as xr
 from rasterio.enums import Resampling
 
-from config import PRIORITY_TIF_V1, PRIORITY_TOP10_TIF_V1, PATHS, PARAMS, out_r, get_logger
+from config import (
+    PRIORITY_TIF_V1, 
+    PRIORITY_TOP10_TIF_V1, 
+    PATHS, PARAMS, out_r, 
+    get_logger,
+)
 from utils_geo import (
     open_template, normalize_linear, percentile_cap, 
     write_gtiff_masked, apply_aoi_mask_if_enabled,

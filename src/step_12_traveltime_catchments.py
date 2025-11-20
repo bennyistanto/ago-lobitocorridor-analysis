@@ -68,7 +68,7 @@ import rioxarray as rxr
 from skimage.graph import MCP_Geometric
 
 from config import (
-    AOI, PATHS, PARAMS, get_logger, out_r, out_t,
+    AOI, PATHS, PARAMS, get_logger, out_r, 
     CATCHMENTS_KPI_CSV,
 )
 from utils_geo import open_template, write_gtiff, cell_area_km2_latlon, align_to_template

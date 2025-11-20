@@ -1,0 +1,11 @@
+Province (AOI),Origin Admin2,Destination Admin2,Modelled flow (relative),Distance (km),Both in top priority mask?
+Moxico,Leua,Luena (moxico),31106.8,108.5,No
+Moxico,Camanongue,Luena (moxico),29860.1,113.7,No
+Moxico,Camanongue,Leua,6789.8,52.6,No
+Moxico,Luchazes,Luena (moxico),6200.2,160.6,No
+Moxico,Luena (moxico),Lumbala N'guimbo,6010.6,267.8,No
+Moxico,Luchazes,Lumbala N'guimbo,660.7,199.7,No
+Moxico,Leua,Lumbala N'guimbo,417.4,285.8,No
+Moxico,Camanongue,Lumbala N'guimbo,213.5,332.9,No
+Moxico,Leua,Luchazes,146.6,250.4,No
+Moxico,Camanongue,Luchazes,110.9,271.5,No

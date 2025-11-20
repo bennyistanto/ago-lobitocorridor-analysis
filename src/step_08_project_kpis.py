@@ -62,7 +62,7 @@ Notes / Design Choices
 
 from __future__ import annotations
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -71,8 +71,8 @@ import xarray as xr
 from rasterio.enums import Resampling
 
 from config import (
-    AOI, PATHS, PARAMS, get_logger, out_t,
-    PROJECTS_GOV, PROJECTS_WB, PROJECTS_OTH, PATHS as _P,
+    AOI, PARAMS, get_logger, out_t,
+    PATHS as _P,
     log_denominators,
     RESAMPLE_DEFAULT_CONT, RESAMPLE_DEFAULT_CAT,
 )

@@ -379,6 +379,16 @@ THEME_VARS: dict[str, dict[str, str]] = {
 }
 ADMIN2_THEMES = tuple(THEME_VARS.keys())
 
+# ------------------------------------------------------------------
+# Derived travel-time semantics (RAPP → minutes)
+# ------------------------------------------------------------------
+# Raw RAPP shapefiles store average travel time in HOURS via the field
+# "avg_hours_to_market_financial" (THEME_VARS["traveltime"]["data1"]).
+# Step 06 converts this indicator to MINUTES and writes it under a
+# minutes-based name so that file names and units match.
+MUNI_TT_FIELD_MINUTES = "avg_minutes_to_market_financial"
+MUNI_TT_WIDE_COL = f"traveltime__{MUNI_TT_FIELD_MINUTES}"
+
 # A small featured set you can chart quickly or plug into priority (Step 07).
 FEATURED_VARS: list[tuple[str, str]] = [
     ("poverty", "poverty_rural"),
@@ -405,7 +415,8 @@ OPTIONAL_GRID_OVERLAYS = {
 OPTIONAL_GRID_OVERLAYS.update({
     "poverty":  "muni_poverty_poverty_rural_1km",
     "food":     "muni_foodinsecurity_food_insec_scale_1km",
-    "muni_tt":  "muni_traveltime_avg_hours_to_market_financial_1km",
+    # Municipal travel-time to market, in MINUTES (post-Step-06 conversion)
+    "muni_tt":  f"muni_traveltime_{MUNI_TT_FIELD_MINUTES}_1km",
 })
 
 # Optional AOI boundary polygon (for masking rasters, if used)

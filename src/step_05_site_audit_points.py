@@ -37,7 +37,9 @@ from scipy.ndimage import convolve
 
 from config import (
     PATHS, out_r, 
-    SITE_AUDIT_CSV, SITE_AUDIT_RADIUS_CELLS, SITE_ID_FIELD, 
+    SITE_AUDIT_CSV, 
+    SITE_AUDIT_RADIUS_CELLS, 
+    SITE_ID_FIELD, 
     ROADS1K_TIF, get_logger
 )
 from utils_geo import open_template, estimate_cell_area_km2

@@ -71,7 +71,8 @@ from rasterio.features import rasterize
 
 from config import (
     AOI, PATHS, PARAMS, get_logger, out_t,
-    muni_path_for, muni_glob_for_theme, ADMIN2_THEMES,
+    muni_path_for, ADMIN2_THEMES,
+    MUNI_TT_FIELD_MINUTES,
 )
 from utils_geo import cell_area_km2_latlon, write_gtiff_masked  # area used; write_gtiff available if you want to persist labels
 
@@ -262,7 +263,7 @@ def main() -> None:
     write_gtiff_masked(labels, PATHS.OUT_R / f"{AOI}_admin2_labels_1km.tif", like=T, nodata=np.nan)
 
     # Open aligned rasters
-    rwi = _open_align(PATHS.OUT_R / f"{AOI}_rwi_1km.tif", T, "bilinear")
+    rwi = _open_align(PATHS.OUT_R / f"{AOI}_rwi_meta_1km.tif", T, "bilinear")
     pop    = _open_align(PATHS.OUT_R / f"{AOI}_pop_1km.tif", T, "bilinear")
     cropf  = _open_align(PATHS.OUT_R / f"{AOI}_cropland_fraction_1km.tif", T, "bilinear")
     grid   = _open_align(PATHS.OUT_R / f"{AOI}_elec_grid_1km.tif", T, "nearest")
@@ -330,7 +331,7 @@ def main() -> None:
             c for c in (
                 "poverty__poverty_rural",
                 "foodinsecurity__food_insec_scale",
-                "traveltime__avg_hours_to_market_financial",
+                f"traveltime__{MUNI_TT_FIELD_MINUTES}",
             ) if c in wide.columns
         ]
 
@@ -360,14 +361,28 @@ def main() -> None:
 
     # Rename headline RAPP columns (if present)
     if "poverty__poverty_rural" in stats.columns:
-        stats.rename(columns={"poverty__poverty_rural": "poverty_rural"}, inplace=True)
+        stats.rename(
+            columns={"poverty__poverty_rural": "poverty_rural"}, 
+            inplace=True,
+        )
     if "foodinsecurity__food_insec_scale" in stats.columns:
-        stats.rename(columns={"foodinsecurity__food_insec_scale": "food_insec_scale"}, inplace=True)
-    if "traveltime__avg_hours_to_market_financial" in stats.columns:
-        stats.rename(columns={"traveltime__avg_hours_to_market_financial": "avg_hours_to_market_financial"}, inplace=True)
+        stats.rename(
+            columns={"foodinsecurity__food_insec_scale": "food_insec_scale"}, 
+            inplace=True,
+        )
+    if f"traveltime__{MUNI_TT_FIELD_MINUTES}" in stats.columns:
+        stats.rename(
+            columns={f"traveltime__{MUNI_TT_FIELD_MINUTES}": MUNI_TT_FIELD_MINUTES},
+            inplace=True,
+        )
+
 
     # Derived indicators
     stats["pop_gt120min"] = stats["pop_total"] - stats["pop_le120min"]
+    if "pct_rural" in stats.columns:
+        stats["rural_pop_est"] = stats["pop_total"] * stats["pct_rural"].clip(0, 1)
+    else:
+        stats["rural_pop_est"] = np.nan
 
     # Composite score (min–max across municipalities), transparent defaults
     # Higher priority if: higher poverty, higher food insecurity, higher average travel time,
@@ -377,9 +392,9 @@ def main() -> None:
         comp_parts["poverty"] = _minmax(stats["poverty_rural"])
     if "food_insec_scale" in stats.columns:
         comp_parts["food_insec"] = _minmax(stats["food_insec_scale"])
-    # average travel time (from RAPP, hours) → minutes to keep units intuitive; else estimate via pop-weighted TT if desired
-    if "avg_hours_to_market_financial" in stats.columns:
-        comp_parts["avg_tt"] = _minmax(stats["avg_hours_to_market_financial"])
+    # average travel time (minutes) from RAPP
+    if MUNI_TT_FIELD_MINUTES in stats.columns:
+        comp_parts["avg_tt"] = _minmax(stats[MUNI_TT_FIELD_MINUTES])
     if "pct_priority" in stats.columns:
         comp_parts["priority_area"] = _minmax(stats["pct_priority"])
     comp_parts["cropland"] = _minmax(stats["cropland_km2"])
@@ -402,14 +417,16 @@ def main() -> None:
         "pop_le60min", "pop_le120min", "pop_gt120min",
         "cropland_km2", "pct_electrified", "pct_rural",
     ]
+    if "rural_pop_est" in stats.columns:
+        out_cols.append("rural_pop_est")
     if "pct_priority" in stats.columns:
         out_cols.append("pct_priority")
     if "poverty_rural" in stats.columns:
         out_cols.append("poverty_rural")
     if "food_insec_scale" in stats.columns:
         out_cols.append("food_insec_scale")
-    if "avg_hours_to_market_financial" in stats.columns:
-        out_cols.append("avg_hours_to_market_financial")
+    if MUNI_TT_FIELD_MINUTES in stats.columns:
+        out_cols.append(MUNI_TT_FIELD_MINUTES)
     if "rwi_mean" in stats.columns:
         out_cols.append("rwi_mean")
 

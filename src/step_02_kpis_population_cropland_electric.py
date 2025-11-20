@@ -23,7 +23,7 @@ import numpy as np
 import pandas as pd
 
 from config import (
-    AOI, PATHS, PARAMS, out_r, out_t, 
+    AOI, PARAMS, out_r,  
     get_logger, KPI_CSV
 )
 from utils_geo import (

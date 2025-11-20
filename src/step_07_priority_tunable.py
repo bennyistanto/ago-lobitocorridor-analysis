@@ -611,27 +611,12 @@ def main() -> None:
                     # Lock schema (13 columns), defaults + order + dtypes
                     out_df = _ensure_rank_columns(out_df)
 
-                    # Write both canonical outputs (identical schema)
+                    # Write canonical Admin-2 priority table
                     out_csv_a = _admin2_rank_path().with_suffix(".csv")  # {AOI}_priority_admin2_rank.csv
-                    out_csv_b = Path(PATHS.OUT_T) / f"{AOI}_priority_muni_rank.csv"
-
-                    # Remove legacy if it exists with wrong columns
-                    if out_csv_b.exists():
-                        try:
-                            _tmp = pd.read_csv(out_csv_b, nrows=1)
-                            if set(_tmp.columns) != set(EXPECTED_RANK_COLS):
-                                out_csv_b.unlink(missing_ok=True)
-                                log.info("Removed stale legacy rank file with mismatched columns: %s", out_csv_b.name)
-                        except Exception:
-                            out_csv_b.unlink(missing_ok=True)
-                            log.info("Removed unreadable legacy rank file: %s", out_csv_b.name)
-
-                    # Write both (identical schema)
                     out_df.to_csv(out_csv_a, index=False)
-                    out_df.to_csv(out_csv_b, index=False)
                     log.info(
-                        "Wrote Admin-2 priority tables → %s, %s (rows=%d, cols=%d)",
-                        out_csv_a.name, out_csv_b.name, len(out_df), out_df.shape[1]
+                        "Wrote Admin-2 priority table → %s (rows=%d, cols=%d)",
+                        out_csv_a.name, len(out_df), out_df.shape[1]
                     )
 
         else:

@@ -67,7 +67,7 @@ from scipy.ndimage import label
 
 from config import (
     AOI, PATHS, PARAMS, get_logger, out_r, out_t,
-    muni_path_for, muni_glob_for_theme,
+    muni_path_for,
     ADMIN2_THEMES,
     PRIORITY_TOP10_TIF,
     PRIORITY_CLUSTERS_TIF,

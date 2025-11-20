@@ -54,13 +54,12 @@ from rasterio.features import rasterize
 from time import perf_counter
 
 from config import (
-    AOI, PATHS, PARAMS, THEME_VARS, ADMIN2_THEMES, FEATURED_VARS,
-    MUNI_JOIN_KEY, RAPP_PCT_IS_0_100,
-    muni_glob_for_theme, muni_path_for,
+    PATHS, PARAMS, THEME_VARS, ADMIN2_THEMES, 
+    RAPP_PCT_IS_0_100,
     out_r, get_logger,
     MUNI_THEMES_SKIP, MUNI_SKIP_MISSING,
     MUNI_SKIP_RASTERIZE, MUNI_LIMIT_THEMES,
-    MUNI_COMPRESS_WIDE,
+    MUNI_TT_FIELD_MINUTES,
 )
 
 from utils_geo import open_template, write_gtiff_masked  # NOTE: we avoid rasterize_vector(vec=...) here
@@ -76,7 +75,7 @@ def _read_theme_layers(theme: str) -> gpd.GeoDataFrame:
     Read the AOI-specific admin2 shapefile for a theme.
     Returns a GeoDataFrame with standardized columns; value fields still named 'dataN'.
     """
-    from config import muni_first_existing_path_for, AOI, PATHS
+    from config import muni_first_existing_path_for, AOI
 
     shp = muni_first_existing_path_for(AOI, theme)
     if shp is None or not Path(shp).exists():
@@ -121,18 +120,33 @@ def _normalize_values(df: pd.DataFrame, theme: str) -> pd.DataFrame:
     Normalize columns:
     - Percentages: if RAPP_PCT_IS_0_100=True, divide by 100 into 0..1
     - Food insecurity scale: also divide by 100 → 0..1
-    - Traveltime hours: convert to minutes (float)
+    - Traveltime hours: convert to minutes (float) and rename to minutes-based field.
     """
     ignore = {"ADM2CD_c", "NAM_2", "NAM_1", "theme", "geometry"}
     var_cols = [c for c in df.columns if c not in ignore and df[c].dtype != object]
 
-    # Traveltime: hours → minutes
+    # Traveltime: hours → minutes, then rename column to MUNI_TT_FIELD_MINUTES
     if theme == "traveltime":
         for c in var_cols:
             df[c] = pd.to_numeric(df[c], errors="coerce") * 60.0
-        log.info("Converted traveltime theme hours→minutes for %s (columns: %s)", theme, ", ".join(var_cols))
+
+        # Expect a single friendly column from THEME_VARS (e.g. 'avg_hours_to_market_financial')
+        if len(var_cols) == 1:
+            src = var_cols[0]
+            if src != MUNI_TT_FIELD_MINUTES:
+                df[MUNI_TT_FIELD_MINUTES] = df[src]
+                df.drop(columns=[src], inplace=True)
+                log.info(
+                    "Traveltime theme: converted '%s' (hours) → '%s' (minutes).",
+                    src, MUNI_TT_FIELD_MINUTES
+                )
+        else:
+            log.warning(
+                "Traveltime theme has %d numeric columns (%s); minutes normalization may be ambiguous.",
+                len(var_cols), ", ".join(var_cols)
+            )
         return df
-    
+
     # Percent → 0..1
     if RAPP_PCT_IS_0_100:
         for c in var_cols:
@@ -143,9 +157,16 @@ def _normalize_values(df: pd.DataFrame, theme: str) -> pd.DataFrame:
 def _theme_var_cols(df: pd.DataFrame, theme: str) -> List[str]:
     """
     Return the friendly variable columns for `theme` that actually exist in df.
+    For 'traveltime', prefer the minutes-based field name from MUNI_TT_FIELD_MINUTES.
     """
     var_map = THEME_VARS.get(theme, {})
     wanted = list(var_map.values())  # friendly names
+
+    # Special-case: traveltime uses minutes-based field name
+    if theme == "traveltime":
+        if MUNI_TT_FIELD_MINUTES in df.columns:
+            return [MUNI_TT_FIELD_MINUTES]
+
     return [c for c in wanted if c in df.columns]
 
 
@@ -466,7 +487,7 @@ def main() -> None:
     must_have = [
         out_r("muni_poverty_poverty_rural_1km"),
         out_r("muni_foodinsecurity_food_insec_scale_1km"),
-        out_r("muni_traveltime_avg_hours_to_market_financial_1km"),
+        out_r(f"muni_traveltime_{MUNI_TT_FIELD_MINUTES}_1km"),
     ]
     for p in must_have:
         if not Path(p).exists():

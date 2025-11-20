@@ -10,6 +10,10 @@ reported for each AOI where the pipeline has been run (e.g. Huambo now,
 additional provinces later). Differences across provinces come entirely
 from the data, not from ad hoc methods.
 
+> The flowchart below summarises the data sources, processing steps, and outputs used to generate the tables and figures in this section. It is mainly intended for readers who want to understand the underlying workflow.
+
+![flow-top](../../outputs/figs/summary_all.png)
+
 ---
 
 ## 1. Where do the strongest priority clusters emerge?
@@ -23,24 +27,28 @@ most of the potential beneficiaries. These clusters represent places where:
 - there is enough **population and cropland** to justify coordinated
   investments.
 
+> Figure S1-flow provides a schematic of how the 1-km priority surface, population, and cropland data are combined to identify priority clusters and produce Table S1 and Figure S1.
+
+![flow-s1](../../outputs/figs/summary_1.png)
+
 **Table S1** below summarizes, for each province and its top clusters:
 
-- the **total priority area** in km²,
-- the share of the province’s population located inside the priority mask,
-- the share of cropland inside the priority mask, and
+- the **total priority cluster area** in km²,
+- the share of the province’s population located inside the priority clusters (the Top 10% surface after pruning small speckles),
+- the share of cropland inside the priority cluster, and
 - the number of distinct clusters.
 
 > **Table S1. Priority clusters by province (illustrative structure)**  
-> *To be generated from `{AOI}_priority_clusters.csv` and
-> `{AOI}_priority_top10_mask.tif`.*
+> *Generated from `{AOI}_priority_clusters.csv` and
+> `{AOI}_kpis_isochrones.csv`.*
 
-| Province (AOI) | No. of clusters | Priority area (km²) | % of province population in priority mask | % of cropland in priority mask |
-| ---- | ---- | ---- | ---- | ----|
-| Benguela | …  | …      | …     | …     |
-| Huambo | 2  | 52.86  | 1.06  | 0.34  |
-| Bie      | …  | …      | …     | …     |
-| Moxico | …  | …      | …     | …     |
-| Moxico Leste | …  | …      | …     | …     |
+| Province (AOI) | Number of priority clusters | Priority cluster area (km²) | Population in clusters (people) | Total population (province, people)  | Population in clusters (% of province total) | Cropland in clusters (km²) | Total cropland (province, km²) | Cropland in clusters (% of province total cropland) | Population density in clusters (people/km²) | Cropland share of cluster area (km² cropland per km² area) |
+| ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
+| Benguela | … | … | … | … | … | … | … | … | … | … |
+| Huambo | 2 | 52.86 | 31776.0 | 2997196.75 | 1.06 | 34.72 | 10156.91 | 0.34 | 601.14 | 0.66 |
+| Bie      | …  | … | … | … | … | … | … | … | … | … |
+| Moxico | 0  | 0.0  | 0.0  | 756128.37  | 0.0 | 0.0 | 346.98 | 0.0 | NaN | NaN |
+| Moxico Leste | … | …  | …  | …  | … | … | … | … | … | … |
 
 **Figure S1** shows the **spatial pattern of priority clusters** along the
 corridor: clusters hug the rail and primary road spine in a few key
@@ -68,7 +76,7 @@ segments, rather than being evenly spread across all municipalities.
 
 :::{tab-item} Moxico
 :sync: key4
-![S1-Moxico]()
+![S1-Moxico](../../outputs/figs/moxico_fig_s1_priority_clusters_adm2_roads.png)
 :::
 
 :::{tab-item} Moxico Leste
@@ -81,8 +89,7 @@ segments, rather than being evenly spread across all municipalities.
 
 ## 2. Are we focusing where needs and opportunities coincide?
 
-The Admin2 analysis deliberately balances **need** and **opportunity**
-when scoring municipalities (Step 09).
+The Admin2 analysis deliberately balances **need** and **opportunity**, combining the tunable priority raster (Step 07) with municipality indicators from the RAPP survey (Step 06 / Step 09).
 
 - **Need** is captured through rural poverty and, where available,
   food insecurity, long travel times and low electrification.
@@ -99,6 +106,10 @@ For each province, we compute a **composite Admin2 score** that combines:
 
 This gives a single 0–1 score that can be compared across municipalities
 within the same province.
+
+> Figure S2-flow outlines how municipality-level indicators are normalised and combined into a composite score, and how this links to the quadrant analysis of priority score versus rural poverty used for Table S2 and Figure S2.
+
+![flow-s2](../../outputs/figs/summary_2.png)
 
 **Table S2** highlights, for each province, the **top-ranked municipalities**
 and how they compare against the provincial average on key equity and
@@ -127,11 +138,11 @@ access indicators.
 
 | Province (AOI) | Municipality (Admin2) | Composite score (0–1) | Rural poverty index | Food insecurity index | Mean travel time (min) | % electrified | Share of province priority area (%) |
 | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
-| Huambo | Longonjo | 0.549 | 0.616 | 0.730 | 286.90 | 0.005 | 0.00 |
-| Huambo | Caala | 0.509 | 0.635 | 0.663 | 71.650 | 0.024 | 49.16 |
-| Huambo | Mungo | 0.469 | 0.673 | 0.692 | 182.182 | 0.004 | 0.00 |
-| Huambo | Londuimbali | 0.463 | 0.650 | 0.644 | 351.733 | 0.009 | 0.00 |
-| Huambo | Ekunha | 0.394 | 0.683 | 0.685 | 61.163 | 0.006 | 0.00 |
+| Huambo | Ekunha     | 0.708 | 0.683 | 0.685 | 61.163  | 16.3  | 0.000   |
+| Huambo | Huambo     | 0.703 | 0.509 | 0.675 | 39.249  | 12.0  | 50.827  |
+| Huambo | Caala      | 0.665 | 0.635 | 0.663 | 71.650  | 37.6  | 49.173  |
+| Huambo | Bailundo   | 0.619 | 0.608 | 0.626 | 105.837 | 26.7  | 0.000   |
+| Huambo | Katchiungo | 0.608 | 0.649 | 0.630 | 91.717  | 51.9  | 0.000   |
 
 :::
 
@@ -153,11 +164,11 @@ access indicators.
 
 | Province (AOI) | Municipality (Admin2) | Composite score (0–1) | Rural poverty index | Food insecurity index | Mean travel time (min) | % electrified | Share of province priority area (%) |
 | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
-| Moxico | ... | ... | ... | ... | ... | ... | ... |
-| Moxico | ... | ... | ... | ... | ... | ... | ... |
-| Moxico | ... | ... | ... | ... | ... | ... | ... |
-| Moxico | ... | ... | ... | ... | ... | ... | ... |
-| Moxico | ... | ... | ... | ... | ... | ... | ... |
+| Moxico | Luena (moxico)        | 0.748  | 0.674  | 0.640 | 145.567  | 4.9  | NaN |
+| Moxico | Lumbala N'guimbo      | 0.549  | 0.740  | 0.684 | 484.487  | 1.6  | NaN |
+| Moxico | Luchazes              | 0.434  | 0.675  | 0.693 | 327.545  | 5.1  | NaN |
+| Moxico | Camanongue            | NaN    | 0.728  | 0.738 | 101.129  | 4.5  | NaN |
+| Moxico | Leua                  | NaN    | 0.627  | 0.784 | 75.766   | 18.5 | NaN |
 
 :::
 
@@ -208,15 +219,15 @@ the corridor, dividing municipalities into four quadrants:
 
 Quadrant Statistics
 
-| quadrant | n_munis | rural_poor_est | share_corridor_rural_poor_pct |
+| Quadrant (score x poverty)  | Number of municipalities | Estimated rural poor (people) | Share of province’s rural poor (%) |
 | ---- | ---- | ---- | ---- |
-| 0 - High score & high poverty   | 4  | 434986.119697  | 24.450089  |
-| 1 - High score & lower poverty  | 2  | 342829.078235  | 19.270044  |
-| 2 - Lower score & high poverty  | 2  | 146194.196262  | 8.217414   |
-| 3 - Lower score & lower poverty | 3  | 855068.445733  | 48.062453  |
+| High score & high poverty   | 3  | 57798.0  | 18.0 |
+| High score & lower poverty  | 3  | 55377.0  | 18.0 |
+| Lower score & high poverty  | 3  | 43169.0  | 14.0 |
+| Lower score & lower poverty | 2  | 157305.0 | 50.0 |
 
-- About 4 of 11 municipalities (36.4%) fall in the **high score & high poverty** quadrant, representing roughly 24.5% of the estimated rural poor covered by the dataset.
-- Around 2 municipalities (18.2%) sit in the **lower score & high poverty** quadrant, accounting for about 8.2% of the estimated rural poor — these are potentially under-prioritized areas.
+- About 3 of 11 municipalities (27.3%) fall in the **high score & high poverty** quadrant, representing roughly 18.4% of the estimated rural poor within Huambo” vs “covered by the dataset.
+- Around 3 municipalities (27.3%) sit in the **lower score & high poverty** quadrant, accounting for about 13.8% of the estimated rural poor — these are potentially under-prioritized areas.
 
 :::
 
@@ -227,7 +238,16 @@ Quadrant Statistics
 
 :::{tab-item} Moxico
 :sync: key4
-![S2-Moxico]()
+![S2-Moxico](../../outputs/figs/moxico_fig_s2_priority_vs_poverty_scatter.png)
+
+Quadrant Statistics
+
+| Quadrant (score x poverty)  | Number of municipalities | Estimated rural poor (people) | Share of province’s rural poor (%) |
+| ---- | ---- | ---- | ---- |
+| High score & high poverty   | 3  | 1532.0  | 26.0  |
+| Lower score & lower poverty | 2  | 4467.0  | 74.0  |
+
+- About 3 of 5 municipalities (60.0%) fall in the **high score & high poverty** quadrant, representing roughly 26.0% of the estimated rural poor in Moxico covered by the dataset.
 :::
 
 :::{tab-item} Moxico Leste
@@ -251,6 +271,10 @@ This allows us to compare:
 - sites that unlock **remote hinterlands** (large 120-min coverage), and
 - how well these benefits align with the priority clusters.
 
+> Figure S3-flow summarises the catchment analysis steps used to estimate people and cropland within 30/60/120 minutes of each site, and how these metrics feed into Table S3 and Figure S3.
+
+![flow-s3](../../outputs/figs/summary_3.png)
+
 **Table S3** aggregates, for each province, the sites with the largest
 **60-minute catchments**, showing:
 
@@ -270,7 +294,7 @@ This allows us to compare:
 :::{tab-item} Huambo
 :sync: key2
 
-| Province (AOI) | Site ID | Site type (e.g. market / hub) | Population within 60 min | Cropland (km²) within 60 min | % of provincial population within 60 min of any site |
+| Province (AOI) | Site ID | Site type (e.g. market / hub) | Population within 60 min | Cropland (km²) within 60 min | % of provincial population within 60 min of this site |
 | ---- | ---- | ---- | ---- | ---- | ---- |
 | huambo   | site_1  | unknown   | 1367563  | 1320.54  | 45.63  |
 | huambo   | site_2  | unknown   | 1355369  | 1186.10  | 45.22  |
@@ -293,6 +317,18 @@ This allows us to compare:
 :::{tab-item} Moxico
 :sync: key4
 
+| Province (AOI) | Site ID | Site type (e.g. market / hub) | Population within 60 min | Cropland (km²) within 60 min | % of provincial population within 60 min of this site |
+| ---- | ---- | ---- | ---- | ---- | ---- |
+| Moxico | site_9  | unknown   | 480541  | 60.60  | 63.55 |
+| Moxico | site_2  | unknown   | 68133   | 15.47  | 9.01  |
+| Moxico | site_11 | unknown   | 47240   | 10.60  | 6.25  |
+| Moxico | site_10 | unknown   | 47157   | 16.18  | 6.24  |
+| Moxico | site_5  | unknown   | 19370   | 31.55  | 2.56  |
+| Moxico | site_7  | unknown   | 14404   | 39.36  | 1.90  |
+| Moxico | site_3  | unknown   | 9982    | 11.02  | 1.32  |
+| Moxico | site_12 | unknown   | 7804    | 7.53   | 1.03  |
+| Moxico | site_8  | unknown   | 3706    | 0.31   | 0.49  |
+| Moxico | site_1  | unknown   | 1623    | 1.15   | 0.21  |
 :::
 
 :::{tab-item} Moxico Leste
@@ -327,7 +363,7 @@ and corridor infrastructure.
 
 :::{tab-item} Moxico
 :sync: key4
-![S3-Moxico]()
+![S3-Moxico](../../outputs/figs/moxico_fig_s3_catchments_union.png)
 :::
 
 :::{tab-item} Moxico Leste
@@ -352,11 +388,21 @@ This allows us to identify:
   and
 - places where an investment might help **bridge separate project islands**.
 
-**Table S4** lists, for each province, the **clusters with the highest
-number of nearby projects** in a given radius.
+For the summary tables and maps in this section, we focus on a radius of
+**30 km**, which is where meaningful co-location begins to appear along
+the corridor. At tighter radii (≤10 km), many clusters currently have few
+or no overlapping projects, indicating that synergies mostly emerge at
+the wider corridor scale rather than right next to cluster centroids.
 
-> **Table S4. Clusters with highest project density (illustrative structure)**  
-> *To be generated from `{AOI}_cluster_synergies.csv`.*
+> Figure S4-flow shows how project locations from Government, the World Bank, and other partners are overlaid around priority clusters to construct the project density metrics presented in Table S4 and Figure S4. For provinces where synergies could not be computed, this flowchart represents the intended workflow.
+
+![flow-s4](../../outputs/figs/summary_4.png)
+
+**Table S4** lists, for each province, the **clusters with the highest
+number of nearby projects** within 30 km.
+
+> **Table S4. Clusters with highest project density within 30 km**  
+> *Generated from `{AOI}_cluster_synergies.csv`.*
 
 ::::{tab-set}
 :::{tab-item} Benguela
@@ -371,6 +417,24 @@ number of nearby projects** in a given radius.
 | ---- | ---- | ---- | ---- | ---- | ---- |
 | Huambo         | 1 | 0 | 23 | 0 | 23 |
 | Huambo         | 2 | 0 | 14 | 0 | 14 |
+
+For Huambo, two priority clusters stand out when we look at projects
+within a **30 km** radius:
+
+- **Cluster 1** sits in a dense halo of World Bank operations, with
+  **23 World Bank projects within 30 km** and no government or other-partner
+  projects recorded in this radius.
+- **Cluster 2** is also well connected, with **14 World Bank projects
+  within 30 km**, again without overlapping government or other-partner
+  investments in the same band.
+
+At tighter distances (≤10 km), the synergies table reports **zero projects**
+around both clusters. This suggests that, in Huambo, co-location with
+other investments currently happens at the **corridor scale (≤30 km)** rather
+than directly adjacent to the cluster centroids. New investments in these
+clusters could therefore act as **anchors for bundling and coordination**
+with existing World Bank portfolios, while still leaving room to attract
+government and other partners closer to the priority nodes over time.
 
 :::
 
@@ -392,11 +456,11 @@ number of nearby projects** in a given radius.
 
 **Figure S4** shows a **corridor-wide map of project density**, where the
 size of each cluster marker is proportional to the number of projects
-within 10 km, and color encodes the dominant financier.
+within 30 km, and color encodes the dominant financier.
 
-> **Figure S4. Project density around priority clusters**  
-> *Static map with cluster markers sized by project counts within 10 km,
-> colored by dominant project type (Gov / WB / Other).*
+> **Figure S4. Project density around priority clusters (≤30 km)**  
+> *Static map with cluster markers sized by project counts within 30 km,
+> colored by dominant project type (Gov / WB / Other / Mixed).*
 
 ::::{tab-set}
 :::{tab-item} Benguela
@@ -439,23 +503,30 @@ We summarize:
 - the **top OD pairs** by modelled flow,
 - municipalities with the highest **combined in- and out-flows** (throughput),
 - how many of those high-throughput municipalities intersect with
-  **priority clusters and top-ranked Admin2s**.
+  **priority clusters and top-ranked Admin2s**, and
+- whether **both ends of a flow** lie inside the **top priority mask**.
 
-> **Table S5. High-throughput municipality pairs (illustrative structure)**  
-> *To be generated from `{AOI}_od_gravity.csv` and `{AOI}_od_zone_attrs.csv`.*
+> Figure S5-flow summarises how the OD-Lite gravity model uses population, distances, and zone attributes to generate OD flows, and how these are aggregated into the high-throughput pairs shown in Table S5 and the OD map in Figure S5.
+
+![flow-s5](../../outputs/figs/summary_5.png)
+
+> **Table S5. High-throughput municipality pairs**  
+> *Generated from `{AOI}_od_gravity.csv` and `{AOI}_od_zone_attrs.csv`, including a
+> flag indicating whether both origin and destination lie inside the top
+> priority mask.*
 
 | Province (AOI) | Origin Admin2 | Destination Admin2 | Modelled flow (relative) | Distance (km) | Both in top priority mask? |
 | ---- | ---- | ---- | ---- | ---- | ---- |
-| Huambo | Caala    | Huambo              | 97938.8  | 55.7  | N/A  |
-| Huambo | Bailundo | Huambo              | 55540.2  | 96.8  | N/A  |
-| Huambo | Huambo   | Tchikala-tcholoanga | 49511.4  | 35.9  | N/A  |
-| Huambo | Huambo   | Katchiungo          | 41293.9  | 57.3  | N/A  |
-| Huambo | Ekunha   | Huambo              | 33430.5  | 45.8  | N/A  |
-| Huambo | Huambo   | Londuimbali         | 31016.6  | 84.9  | N/A  |
-| Huambo | Huambo   | Longonjo            | 26294.1  | 68.8  | N/A  |
-| Huambo | Bailundo | Mungo               | 18917.9  | 44.4  | N/A  |
-| Huambo | Bailundo | Londuimbali         | 16082.6  | 68.6  | N/A  |
-| Huambo | Huambo   | Ukuma               | 15144.4  | 70.5  | N/A  |
+| Huambo | Caala    | Huambo              | 97938.8  | 55.7  | Yes  |
+| Huambo | Bailundo | Huambo              | 55540.2  | 96.8  | No  |
+| Huambo | Huambo   | Tchikala-tcholoanga | 49511.4  | 35.9  | No  |
+| Huambo | Huambo   | Katchiungo          | 41293.9  | 57.3  | No  |
+| Huambo | Ekunha   | Huambo              | 33430.5  | 45.8  | No  |
+| Huambo | Huambo   | Londuimbali         | 31016.6  | 84.9  | No  |
+| Huambo | Huambo   | Longonjo            | 26294.1  | 68.8  | No  |
+| Huambo | Bailundo | Mungo               | 18917.9  | 44.4  | No  |
+| Huambo | Bailundo | Londuimbali         | 16082.6  | 68.6  | No  |
+| Huambo | Huambo   | Ukuma               | 15144.4  | 70.5  | No  |
 
 ::::{tab-set}
 :::{tab-item} Benguela
@@ -476,6 +547,18 @@ We summarize:
 :::{tab-item} Moxico
 :sync: key4
 
+| Province (AOI) | Origin Admin2 | Destination Admin2 | Modelled flow (relative) | Distance (km) | Both in top priority mask? |
+| ---- | ---- | ---- | ---- | ---- | ---- |
+| Moxico | Leua           | Luena (moxico)     | 31106.8 | 108.5 | No |
+| Moxico | Camanongue     | Luena (moxico)     | 29860.1 | 113.7 | No |
+| Moxico | Camanongue     | Leua               | 6789.8  | 52.6  | No |
+| Moxico | Luchazes       | Luena (moxico)     | 6200.2  | 160.6 | No |
+| Moxico | Luena (moxico) | Lumbala N'guimbo   | 6010.6  | 267.8 | No |
+| Moxico | Luchazes       | Lumbala N'guimbo   | 660.7   | 199.7 | No |
+| Moxico | Leua           | Lumbala N'guimbo   | 417.4   | 285.8 | No |
+| Moxico | Camanongue     | Lumbala N'guimbo   | 213.5   | 332.9 | No |
+| Moxico | Leua           | Luchazes           | 146.6   | 250.4 | No |
+| Moxico | Camanongue     | Luchazes           | 110.9   | 271.5 | No |
 :::
 
 :::{tab-item} Moxico Leste
@@ -506,7 +589,7 @@ We summarize:
 
 :::{tab-item} Moxico
 :sync: key4
-![S5-Moxico]()
+![S5-Moxico](../../outputs/figs/moxico_fig_s5_od_flows.png)
 :::
 
 :::{tab-item} Moxico Leste
