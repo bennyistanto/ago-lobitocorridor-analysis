@@ -63,7 +63,7 @@ most of the potential beneficiaries. These clusters represent places where:
 
 > Flowchart below provides a schematic of how the 1-km priority surface, population, and cropland data are combined to identify priority clusters and produce Table S1 and Figure S1.
 
-```mermaid
+```{mermaid}
 flowchart TB
  subgraph S4_inputs["Inputs"]
         s4i1["1 km priority surface (Step 07)"]
@@ -173,7 +173,7 @@ within the same province.
 
 > Flowchart below outlines how municipality-level indicators are normalised and combined into a composite score, and how this links to the quadrant analysis of priority score versus rural poverty used for Table S2 and Figure S2.
 
-```mermaid
+```{mermaid}
 ---
 config:
   layout: dagre
@@ -374,7 +374,7 @@ This allows us to compare:
 
 > Flowchart below summarises the catchment analysis steps used to estimate people and cropland within 30/60/120 minutes of each site, and how these metrics feed into Table S3 and Figure S3.
 
-```mermaid
+```{mermaid}
 ---
 config:
   layout: dagre
@@ -535,7 +535,7 @@ the wider corridor scale rather than right next to cluster centroids.
 
 > Flowchart below shows how project locations from Government, the World Bank, and other partners are overlaid around priority clusters to construct the project density metrics presented in Table S4 and Figure S4. For provinces where synergies could not be computed, this flowchart represents the intended workflow.
 
-```mermaid
+```{mermaid}
 ---
 config:
   layout: dagre
@@ -682,7 +682,7 @@ We summarize:
 
 > Flowchart below summarises how the OD-Lite gravity model uses population, distances, and zone attributes to generate OD flows, and how these are aggregated into the high-throughput pairs shown in Table S5 and the OD map in Figure S5.
 
-```mermaid
+```{mermaid}
 ---
 config:
   layout: elk
