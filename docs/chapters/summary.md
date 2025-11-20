@@ -12,7 +12,7 @@ from the data, not from ad hoc methods.
 
 > The flowchart below summarises the data sources, processing steps, and outputs used to generate the tables and figures in this section. It is mainly intended for readers who want to understand the underlying workflow.
 
-```mermaid
+```{mermaid}
 ---
 config:
   layout: elk
