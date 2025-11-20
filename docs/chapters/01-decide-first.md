@@ -35,12 +35,13 @@ Run: **07 → 10 (optional scenarios) → 11 (clusters)** once. This chapter onl
 
 **This cell loads the cluster KPIs table from `/outputs` for the current AOI (no recomputation).**
 
-```{code-cell} python
+```{code-cell} ipython3
 import os
 import pandas as pd
 from pathlib import Path
 
-ROOT = Path(os.getenv("PROJECT_ROOT", "."))
+# Go up two levels (../..) to get from /docs/chapters/ to the repo root
+ROOT = Path(os.getenv("PROJECT_ROOT", "../.."))
 AOI  = os.getenv("AOI", "huambo")
 OUT_T = ROOT / "outputs" / "tables"
 
