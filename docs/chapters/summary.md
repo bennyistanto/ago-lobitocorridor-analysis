@@ -77,7 +77,7 @@ flowchart TB
         s4p3["Compute cluster stats: area, people, cropland"]
         s4p4["Aggregate to province level for summary table"]
   end
- subgraph S4_outputs["Outputs for Slide 4"]
+ subgraph S4_outputs["Outputs for Summary 1"]
         s4o1["Table S1: priority clusters by province"]
         s4o2["Figure S1: map of priority clusters along corridor"]
         s4o3["Messages on where needs and opportunities stack"]
@@ -93,7 +93,6 @@ flowchart TB
     s4o1 --> s4o3
     s4o2 --> s4o3
 ```
-
 
 **Table S1** below summarizes, for each province and its top clusters:
 
