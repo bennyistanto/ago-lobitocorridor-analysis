@@ -1,0 +1,21 @@
+Lobito slide deck
+
+S1: Today is about the logic of prioritisation – how we move from data to clusters, to municipalities, to sites and flows.
+S2: If we onboard another province, we plug it into the same stack: data in → the same CSVs and rasters out.
+S3: I'll now walk through 5 summary questions – each one corresponds to one or more steps in this pipeline.
+S4: Visual: Map showing priority clusters + ADM2 + rail + roads
+S5: This slide is useful when the team asks 'what if we changed the weights or thresholds?' – you can genuinely say it's parameterised.
+S6: Visuals: Table snippet from summary_table_s2_top_municipalities.csv; Scatter plot with quadrants
+S7: If someone asks about being more pro-poor: we increase the weight of poverty/food insecurity in the Admin2 composite score.
+S8: Visuals: Table excerpt from huambo_summary_table_s3_top_sites_60min.csv; Map showing catchments + clusters + network
+S9: Catchment analysis flexibility allows for scenario planning and optimization of site selection strategies
+S10: Visuals: Table from huambo_summary_table_s4_clusters_synergies_30km.csv; Map with cluster rings by project counts
+S11: Synergies analysis helps identify opportunities for coordinated investment and avoid fragmentation
+S12: Visuals: Table from huambo_summary_table_s5_od_high_throughput.csv; Map with orange arcs, clusters + network
+S13: OD model provides insights into movement patterns and helps prioritise corridor segments with highest flow potential
+S14: This framework provides a scalable, transparent approach to corridor prioritisation and investment coordination
+
+
+
+
+
