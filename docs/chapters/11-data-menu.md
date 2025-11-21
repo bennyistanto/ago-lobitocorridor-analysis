@@ -142,7 +142,7 @@ pd.DataFrame(themes).sort_values("theme")
 
 ```{code-cell} ipython3
 # Naming convention per your standard: data/vectors/ago_gov_{aoi}_{theme}_rapp_2020_a.shp
-BASE = ROOT / "data" / "vectors" "
+BASE = ROOT / "data" / "vectors"
 rows = []
 for t in ADMIN2_THEMES:
     shp = BASE / f"ago_gov_{AOI}_{t}_rapp_2020_a.shp"
