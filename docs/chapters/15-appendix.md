@@ -1,3 +1,14 @@
+---
+jupytext:
+  formats: md:myst
+  text_representation:
+    extension: .md
+    format_name: myst
+kernelspec:
+  display_name: Python 3
+  language: python
+  name: python3
+---
 # 15. Appendix (for analysts)
 
 ## Problem
@@ -44,7 +55,6 @@ None—reference page only.
 | 13   | `step_13_synergies_overlay.py` | Proximity to Gov/WB/Other projects  | `tables/{AOI}_site_synergies.csv`, `tables/{AOI}_cluster_synergies.csv` |
 | 14   | `step_14_lite_od.py` | Admin2 gravity flows + agent samples  | `tables/{AOI}_od_gravity.csv`, `tables/{AOI}_od_zone_attrs.csv`, `tables/{AOI}_od_agents.csv` |
 
-
 > Exact filenames may vary slightly if you selected **Top-km²** instead of **Top-%** in Step 10.
 
 ---
@@ -88,7 +98,8 @@ None—reference page only.
 import os, sys, pprint
 from pathlib import Path
 
-ROOT = Path(os.getenv("PROJECT_ROOT", "."))
+# Go up two levels (../..) to get from /docs/chapters/ to the repo root
+ROOT = Path(os.getenv("PROJECT_ROOT", "../.."))
 AOI  = os.getenv("AOI", "moxico")
 sys.path.append(str(ROOT / "src"))
 

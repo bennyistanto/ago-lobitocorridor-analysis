@@ -1,3 +1,14 @@
+---
+jupytext:
+  formats: md:myst
+  text_representation:
+    extension: .md
+    format_name: myst
+kernelspec:
+  display_name: Python 3
+  language: python
+  name: python3
+---
 # 6. Stacking with other investments (synergies)
 
 ## Problem
@@ -31,7 +42,6 @@ Measure simple, decision-friendly synergies: **nearest distance** to other proje
 * `outputs/tables/{AOI}_cluster_synergies.csv`  
   *(columns: cluster_id, lon, lat, dist_km_nearest_gov, dist_km_nearest_wb, dist_km_nearest_oth, plus the same count_gov_le{r}km / count_wb_le{r}km / count_oth_le{r}km fields)*
 
-
 ## How to run (analyst)
 
 Run **Step 13** once. This chapter only **loads** saved outputs (no recomputation).
@@ -43,7 +53,8 @@ import os
 import pandas as pd
 from pathlib import Path
 
-ROOT = Path(os.getenv("PROJECT_ROOT", "."))
+# Go up two levels (../..) to get from /docs/chapters/ to the repo root
+ROOT = Path(os.getenv("PROJECT_ROOT", "../.."))
 AOI  = os.getenv("AOI", "huambo")
 OUT_T = ROOT / "outputs" / "tables"
 

@@ -25,7 +25,7 @@ Use a transparent **priority surface** (access + people + production + simple ri
 - **Population** (WorldPop, 1 km)  
 - **Cropland fraction** (from WorldCover, 10 m → 1 km)  
 - **Rural/urban mask, electrification** (WBG Global Electrification Platform)
-- *(Optional)* **Drought** (FAO's ASI 1 km), 
+- *(Optional)* **Drought** (FAO's ASI 1 km)
 - *(Optional)* **Flood depth** (FATHOM Pluvial 100yr 30 m → 1 km)
 
 ## Methods (brief)

@@ -1,3 +1,14 @@
+---
+jupytext:
+  formats: md:myst
+  text_representation:
+    extension: .md
+    format_name: myst
+kernelspec:
+  display_name: Python 3
+  language: python
+  name: python3
+---
 # 8. Main movement patterns
 
 ## Problem
@@ -44,7 +55,8 @@ import os
 import pandas as pd
 from pathlib import Path
 
-ROOT = Path(os.getenv("PROJECT_ROOT", "."))
+# Go up two levels (../..) to get from /docs/chapters/ to the repo root
+ROOT = Path(os.getenv("PROJECT_ROOT", "../.."))
 AOI  = os.getenv("AOI", "huambo")
 OUT_T = ROOT / "outputs" / "tables"
 

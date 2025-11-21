@@ -1,3 +1,14 @@
+---
+jupytext:
+  formats: md:myst
+  text_representation:
+    extension: .md
+    format_name: myst
+kernelspec:
+  display_name: Python 3
+  language: python
+  name: python3
+---
 # 11. What data went in (data menu)
 
 ## Problem
@@ -33,7 +44,8 @@ None—this is a **catalog** view only. (If you want, export the table at the bo
 import os, sys
 from pathlib import Path
 
-ROOT = Path(os.getenv("PROJECT_ROOT", "."))
+# Go up two levels (../..) to get from /docs/chapters/ to the repo root
+ROOT = Path(os.getenv("PROJECT_ROOT", "../.."))
 AOI  = os.getenv("AOI", "huambo")
 sys.path.append(str(ROOT / "src"))
 

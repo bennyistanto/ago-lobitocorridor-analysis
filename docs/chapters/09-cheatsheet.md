@@ -1,3 +1,14 @@
+---
+jupytext:
+  formats: md:myst
+  text_representation:
+    extension: .md
+    format_name: myst
+kernelspec:
+  display_name: Python 3
+  language: python
+  name: python3
+---
 # 9. Change the knobs, not the code (practical tuning cheatsheet)
 
 ## Problem
@@ -63,7 +74,8 @@ from pathlib import Path
 import pprint
 from dataclasses import asdict
 
-ROOT = Path(os.getenv("PROJECT_ROOT", "."))
+# Go up two levels (../..) to get from /docs/chapters/ to the repo root
+ROOT = Path(os.getenv("PROJECT_ROOT", "../.."))
 AOI  = os.getenv("AOI", "huambo")
 
 # We only read/print; parameters are defined in src/config.py

@@ -1,3 +1,14 @@
+---
+jupytext:
+  formats: md:myst
+  text_representation:
+    extension: .md
+    format_name: myst
+kernelspec:
+  display_name: Python 3
+  language: python
+  name: python3
+---
 # 10. Run this anywhere along the corridor (AOI playbook)
 
 ## Problem
@@ -36,12 +47,9 @@ Standardize three things: (1) **AOI selection** (single source of truth), (2) **
 import os
 from pathlib import Path
 
-# ⚙️ Set these two once per session (or export as env vars before launching Jupyter):
-os.environ.setdefault("PROJECT_ROOT", "/mnt/d/temp/wbg/iso3/ago/lobito-corridor")
-os.environ.setdefault("AOI", "huambo")  # e.g., "benguela", "huambo", "bie", "moxico", "moxicoleste"
-
-ROOT = Path(os.getenv("PROJECT_ROOT"))
-AOI  = os.getenv("AOI")
+# Go up two levels (../..) to get from /docs/chapters/ to the repo root
+ROOT = Path(os.getenv("PROJECT_ROOT", "../.."))
+AOI  = os.getenv("AOI", "huambo")
 OUT_R = ROOT / "outputs" / "rasters"
 OUT_T = ROOT / "outputs" / "tables"
 print("AOI:", AOI, "\nROOT:", ROOT, "\nOUT_R:", OUT_R, "\nOUT_T:", OUT_T)

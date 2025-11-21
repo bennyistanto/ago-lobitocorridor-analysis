@@ -1,3 +1,14 @@
+---
+jupytext:
+  formats: md:myst
+  text_representation:
+    extension: .md
+    format_name: myst
+kernelspec:
+  display_name: Python 3
+  language: python
+  name: python3
+---
 # 5. Who benefits and how fast (catchments)
 
 ## Problem
@@ -17,7 +28,6 @@ Use the **minutes-to-market** surface as a friction raster, build **isochrone ba
 * **Cropland fraction (1-km, 0–1)** — `outputs/rasters/{AOI}_cropland_fraction_1km.tif` (Step 00)
 * *(Optional)* **RWI (Relative Wealth Index, 1-km)** — if present in AOI rasters for additional equity KPIs
 
-
 ## Methods (brief)
 
 * **Step 12** builds isochrone masks at **30/60/120 minutes** from each site using the minutes raster (no network routing needed).
@@ -32,7 +42,6 @@ Use the **minutes-to-market** surface as a friction raster, build **isochrone ba
 * `outputs/rasters/{AOI}_catch_site{N}_{thresh}min.tif`  
   *(binary isochrone masks per site & threshold; 1 = reached within thresh minutes)*
 
-
 ## How to run (analyst)
 
 Run **Step 12** once. This chapter only **loads** saved outputs (no recomputation).
@@ -44,7 +53,8 @@ import os
 import pandas as pd
 from pathlib import Path
 
-ROOT = Path(os.getenv("PROJECT_ROOT", "."))
+# Go up two levels (../..) to get from /docs/chapters/ to the repo root
+ROOT = Path(os.getenv("PROJECT_ROOT", "../.."))
 AOI  = os.getenv("AOI", "huambo")
 OUT_T = ROOT / "outputs" / "tables"
 
@@ -117,7 +127,6 @@ plt.show()
 * **Cropland focus:** Where **cropland km²** grows sharply with time, logistics improvements can unlock production areas.
 * **Balance:** Use this alongside priority clusters (Ch. 3) and municipality targets (Ch. 2) to choose sites that are both impactful and feasible.
 * * **Equity lens:** Use `rwi_mean` and `rwi_pop_weighted` to see whether fast-reach sites mainly serve poorer or better-off areas (where RWI is available).
-
 
 ## Caveats
 

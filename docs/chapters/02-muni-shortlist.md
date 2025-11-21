@@ -1,3 +1,14 @@
+---
+jupytext:
+  formats: md:myst
+  text_representation:
+    extension: .md
+    format_name: myst
+kernelspec:
+  display_name: Python 3
+  language: python
+  name: python3
+---
 # 2. Are we putting scarce resources where they matter most?
 
 ## Problem
@@ -20,7 +31,6 @@ Aggregate the priority surface to **Admin2** and build a **composite score** per
 - Merge with RAPP **poverty** and **food insecurity** attributes.
 - Compute correlations as a basic equity check (see Chapter 7 for detailed outlier flags at municipality level).
 
-
 ## Outputs
 
 - `outputs/tables/{AOI}_priority_muni_rank.csv` — one row per Admin2 (composite score, population, and merged poverty & food-insecurity indicators)
@@ -29,7 +39,6 @@ Aggregate the priority surface to **Admin2** and build a **composite score** per
 ## How to run (analyst)
 
 Run: **06 → 07 → 09** (and **10** for scenarios). This chapter only **loads** saved outputs (no recomputation).
-
 
 **This cell loads the municipality ranking table from `/outputs` and shows the top-10 by score.**
 
