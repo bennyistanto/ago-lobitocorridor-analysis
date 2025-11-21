@@ -79,16 +79,41 @@ else:
 **This cell lists Top-10 clusters with the **largest number of projects within 10 km** (all partners).**
 
 ```{code-cell} ipython3
+# Columns like count_gov_le10km, count_wb_le10km, count_oth_le10km, etc.
 cand_cols = [c for c in syn_clusters.columns
              if c.startswith("count_") and c.endswith("le10km")]
+
 if "cluster_id" in syn_clusters.columns and cand_cols:
+    # Total projects within 10 km (or whatever radius is encoded in the columns)
     syn_clusters["n10_total"] = syn_clusters[cand_cols].sum(axis=1)
-    top_cov = (syn_clusters
-               .sort_values("n10_total", ascending=False)
-               .head(10)[["cluster_id","NAM_2","n10_total"] + cand_cols])
+
+    # --- Try to bring in NAM_2 from the priority_clusters table ---
+    if "NAM_2" not in syn_clusters.columns:
+        clusters_path = OUT_T / f"{AOI}_priority_clusters.csv"
+        if clusters_path.exists():
+            clusters = pd.read_csv(clusters_path)
+            # Only keep the key + name to avoid duplicating lots of cols
+            if {"cluster_id", "NAM_2"}.issubset(clusters.columns):
+                syn_clusters = syn_clusters.merge(
+                    clusters[["cluster_id", "NAM_2"]],
+                    on="cluster_id",
+                    how="left",
+                )
+
+    # Decide which columns to show
+    cols_to_show = ["cluster_id", "n10_total"] + cand_cols
+    if "NAM_2" in syn_clusters.columns:
+        # Insert NAM_2 right after cluster_id for readability
+        cols_to_show.insert(1, "NAM_2")
+
+    top_cov = (
+        syn_clusters
+        .sort_values("n10_total", ascending=False)
+        .head(10)[cols_to_show]
+    )
     top_cov
 else:
-    print("Expected columns missing in syn_clusters (need cluster_id and count_*_le10km).")
+    print("Expected columns missing in syn_clusters (need 'cluster_id' and count_*_le10km).")
 ```
 
 **This cell flags sites with **zero projects within 30 km** (islands to treat with caution or to seed first).**

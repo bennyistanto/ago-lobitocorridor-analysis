@@ -104,9 +104,13 @@ cov.head(10)
 ```{code-cell} ipython3
 import matplotlib.pyplot as plt
 
-t8 = clusters.nlargest(8, "pop")
+t8 = clusters.copy()
+t8["pop_plot"] = t8["pop"].fillna(0)  # show NaNs as 0-height bars
+t8 = t8.nlargest(8, "pop_plot")
+
+labels = [f"#{cid} • {n2}" for cid, n2 in zip(t8["cluster_id"], t8["NAM_2"])]
 plt.figure()
-plt.barh([f"#{cid} • {n2}" for cid,n2 in zip(t8["cluster_id"], t8["NAM_2"])], t8["pop"])
+plt.barh(labels, t8["pop_plot"])
 plt.gca().invert_yaxis()
 plt.xlabel("People (WorldPop)")
 plt.title(f"{AOI}: Top clusters by population")
