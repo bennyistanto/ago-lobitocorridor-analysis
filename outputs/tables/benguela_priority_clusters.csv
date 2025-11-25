@@ -1,0 +1,5 @@
+cluster_id,area_km2,pop,cropland_km2,pct_electrified,pct_rural,mean_travel_min,drought_mean_0_1,risk_roadcells,flood_depth_mean_m,rwi_mean,centroid_lon,centroid_lat,ADM2CD_c,NAM_1,NAM_2,share_le_30m,share_le_60m,share_le_120m,share_le_240m
+2,274.08,,136.25,0.083,0.44,20.8,,47,,,14.27965,-13.10424,AGO002008,Benguela,Cubal,0.78,0.994,1.0,1.0
+1,103.13,,56.83,0.114,0.415,21.6,,18,131.9,,14.57476,-13.01548,AGO002009,Benguela,Ganda,0.748,0.984,1.0,1.0
+4,27.65,,17.22,0.0,0.242,53.0,0.08,9,,,14.4678,-13.21907,AGO002008,Benguela,Cubal,0.0,0.879,1.0,1.0
+3,26.83,3134.0,6.9,0.062,0.406,29.9,,1,116.3,,14.11458,-13.04036,AGO002005,Benguela,Caimbambo,0.5,1.0,1.0,1.0

@@ -1,0 +1,11 @@
+Province (AOI),Origin Admin2,Destination Admin2,Modelled flow (relative),Distance (km),Both in top priority mask?
+Benguela,Benguela,Catumbela,103693.4,32.9,No
+Benguela,Benguela,Lobito,53129.5,80.8,No
+Benguela,Benguela,Cubal,45650.2,91.9,No
+Benguela,Catumbela,Lobito,41826.9,48.6,No
+Benguela,Cubal,Ganda,39421.1,41.9,Yes
+Benguela,Benguela,Bocoio,27623.0,85.1,No
+Benguela,Benguela,Caimbambo,24313.9,51.7,No
+Benguela,Bocoio,Lobito,23924.1,49.8,No
+Benguela,Benguela,Ganda,20842.4,128.3,No
+Benguela,Baia Farta,Benguela,20274.6,71.4,No

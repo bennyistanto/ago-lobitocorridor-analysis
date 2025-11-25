@@ -1,0 +1,5 @@
+scenario_id,desc,id,USE_COMPONENTS,W_ACC,W_POP,W_VEG,W_NTL,W_DRT,MASK_REQUIRE_RURAL,MASK_MIN_CROPLAND,SMOOTH_RADIUS,TOP_PCT_CELLS,TOP_KM2,MIN_CLUSTER_CELLS,selected_cells,selected_km2,pop_selected,ag_km2_selected,drought_mean_selected,overlap_pct_vs_baseline,jaccard_vs_baseline,baseline_cells
+baseline,"ACC+POP+DRT, rural-only, min crop 5%, 3x3 smooth, Top10%",baseline,"(1, 1, 0, 0, 1)",0.5,0.3,0.0,0.0,0.2,True,0.05,1,0.1,,30,245,206.0087,370392.9375,84.2667,3.0,0.1306,0.1306,32
+no_drought,ACC+POP only; rural-only; min crop 5%; Top10%,no_drought,"(1, 1, 0, 0, 0)",0.7,0.3,0.0,0.0,0.0,True,0.05,1,0.1,,30,871,732.8431,506371.4375,235.824,3.4936,0.0356,0.0356,32
+veg_signal,ACC+POP+VEG; rural-only; min crop 10%; Top10%,veg_signal,"(1, 1, 1, 0, 0)",0.5,0.3,0.2,0.0,0.0,True,0.1,1,0.1,,30,690,580.5421,479086.0625,183.7499,3.4,0.042,0.0418,32
+top_800km2,"ACC+POP+DRT, rural-only; select fixed 800 km²; mild smooth",top_800km2,"(1, 1, 0, 0, 1)",0.5,0.3,0.0,0.0,0.2,True,0.05,1,,800.0,30,517,434.8824,451727.6875,152.1554,3.4812,0.0619,0.0619,32

@@ -107,11 +107,11 @@ flowchart TB
 
 | Province (AOI) | Number of priority clusters | Priority cluster area (km²) | Population in clusters (people) | Total population (province, people)  | Population in clusters (% of province total) | Cropland in clusters (km²) | Total cropland (province, km²) | Cropland in clusters (% of province total cropland) | Population density in clusters (people/km²) | Cropland share of cluster area (km² cropland per km² area) |
 | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
-| Benguela | … | … | … | … | … | … | … | … | … | … |
+| Benguela | 4 | 431.69 | 3134.0 | 3271805.25 | 0.1 | 217.2 | 5749.06 | 3.78 | 7.26 | 0.5 |
 | Huambo | 2 | 52.86 | 31776.0 | 2997196.75 | 1.06 | 34.72 | 10156.91 | 0.34 | 601.14 | 0.66 |
-| Bie      | …  | … | … | … | … | … | … | … | … | … |
+| Bie      | 1  | 26.89 | 18307.0 | 2159939.0 | 0.85 | 11.17 | 5923.75 | 0.19 | 680.81 | 0.42 |
 | Moxico | 0  | 0.0  | 0.0  | 756128.37  | 0.0 | 0.0 | 346.98 | 0.0 | NaN | NaN |
-| Moxico Leste | … | …  | …  | …  | … | … | … | … | … | … |
+| Moxico Leste | 0 | 0.0  | 0.0  | 372044.31  | 0.0 | 0.0 | 51.86 | 0.0 | NaN | NaN |
 
 **Figure S1** shows the **spatial pattern of priority clusters** along the
 corridor: clusters hug the rail and primary road spine in a few key
@@ -124,7 +124,7 @@ segments, rather than being evenly spread across all municipalities.
 ::::{tab-set}
 :::{tab-item} Benguela
 :sync: key1
-![S1-Benguela]()
+![S1-Benguela](../../outputs/figs/benguela_fig_s1_priority_clusters_adm2_roads.png)
 :::
 
 :::{tab-item} Huambo
@@ -134,7 +134,7 @@ segments, rather than being evenly spread across all municipalities.
 
 :::{tab-item} Bie
 :sync: key3
-![S1-Bie]()
+![S1-Bie](../../outputs/figs/bie_fig_s1_priority_clusters_adm2_roads.png)
 :::
 
 :::{tab-item} Moxico
@@ -144,7 +144,7 @@ segments, rather than being evenly spread across all municipalities.
 
 :::{tab-item} Moxico Leste
 :sync: key5
-![S1-MoxicoLeste]()
+![S1-MoxicoLeste](../../outputs/figs/moxicoleste_fig_s1_priority_clusters_adm2_roads.png)
 :::
 ::::
 
@@ -225,11 +225,11 @@ access indicators.
 
 | Province (AOI) | Municipality (Admin2) | Composite score (0–1) | Rural poverty index | Food insecurity index | Mean travel time (min) | % electrified | Share of province priority area (%) |
 | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
-| Benguela | ... | ... | ... | ... | ... | ... | ... |
-| Benguela | ... | ... | ... | ... | ... | ... | ... |
-| Benguela | ... | ... | ... | ... | ... | ... | ... |
-| Benguela | ... | ... | ... | ... | ... | ... | ... |
-| Benguela | ... | ... | ... | ... | ... | ... | ... |
+| benguela | Catumbela  | 0.702 | 0.353 | 0.672 | 30.519  | 54.1 | 0.000  |
+| benguela | Benguela   | 0.683 | 0.349 | 0.666 | 49.682  | 15.0 | 0.000  |
+| benguela | Caimbambo  | 0.646 | 0.596 | 0.790 | 131.391 | 10.4 | 7.380  |
+| benguela | Cubal      | 0.629 | 0.740 | 0.764 | 178.319 | 6.1  | 70.097 |
+| benguela | Baia Farta | 0.629 | 0.442 | 0.673 | 75.299  | 50.6 | 0.000  |
 
 :::
 
@@ -251,11 +251,11 @@ access indicators.
 
 | Province (AOI) | Municipality (Admin2) | Composite score (0–1) | Rural poverty index | Food insecurity index | Mean travel time (min) | % electrified | Share of province priority area (%) |
 | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
-| Bie | ... | ... | ... | ... | ... | ... | ... |
-| Bie | ... | ... | ... | ... | ... | ... | ... |
-| Bie | ... | ... | ... | ... | ... | ... | ... |
-| Bie | ... | ... | ... | ... | ... | ... | ... |
-| Bie | ... | ... | ... | ... | ... | ... | ... |
+| bie | Camacupa | 0.706  | 0.594  | 0.692  | 245.867  | 1.3  | 0.0   |
+| bie | Kuito    | 0.692  | 0.483  | 0.701  | 162.152  | 5.7  | 100.0 |
+| bie | N'harea  | 0.689  | 0.495  | 0.609  | 41.423   | 4.6  | 0.0   |
+| bie | Andulo   | 0.653  | 0.530  | 0.644  | 214.413  | 4.4  | 0.0   |
+| bie | Catabola | 0.627  | 0.490  | 0.648  | 201.453  | 2.3  | 0.0   |
 
 :::
 
@@ -264,11 +264,11 @@ access indicators.
 
 | Province (AOI) | Municipality (Admin2) | Composite score (0–1) | Rural poverty index | Food insecurity index | Mean travel time (min) | % electrified | Share of province priority area (%) |
 | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
-| Moxico | Luena (moxico)        | 0.748  | 0.674  | 0.640 | 145.567  | 4.9  | NaN |
-| Moxico | Lumbala N'guimbo      | 0.549  | 0.740  | 0.684 | 484.487  | 1.6  | NaN |
-| Moxico | Luchazes              | 0.434  | 0.675  | 0.693 | 327.545  | 5.1  | NaN |
-| Moxico | Camanongue            | NaN    | 0.728  | 0.738 | 101.129  | 4.5  | NaN |
-| Moxico | Leua                  | NaN    | 0.627  | 0.784 | 75.766   | 18.5 | NaN |
+| Moxico | Luena (moxico)   | 0.748  | 0.674  | 0.640 | 145.567  | 4.9  | NaN |
+| Moxico | Lumbala N'guimbo | 0.549  | 0.740  | 0.684 | 484.487  | 1.6  | NaN |
+| Moxico | Luchazes         | 0.434  | 0.675  | 0.693 | 327.545  | 5.1  | NaN |
+| Moxico | Camanongue       | NaN    | 0.728  | 0.738 | 101.129  | 4.5  | NaN |
+| Moxico | Leua             | NaN    | 0.627  | 0.784 | 75.766   | 18.5 | NaN |
 
 :::
 
@@ -277,11 +277,7 @@ access indicators.
 
 | Province (AOI) | Municipality (Admin2) | Composite score (0–1) | Rural poverty index | Food insecurity index | Mean travel time (min) | % electrified | Share of province priority area (%) |
 | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
-| Moxico Leste | ... | ... | ... | ... | ... | ... | ... |
-| Moxico Leste | ... | ... | ... | ... | ... | ... | ... |
-| Moxico Leste | ... | ... | ... | ... | ... | ... | ... |
-| Moxico Leste | ... | ... | ... | ... | ... | ... | ... |
-| Moxico Leste | ... | ... | ... | ... | ... | ... | ... |
+| Moxico Leste | Alto Zambeze | 0.732 | 0.739 | 0.647 | 196.08 | 4.3 | NaN |
 
 :::
 ::::
@@ -310,7 +306,20 @@ the corridor, dividing municipalities into four quadrants:
 ::::{tab-set}
 :::{tab-item} Benguela
 :sync: key1
-![S2-Benguela]()
+![S2-Benguela](../../outputs/figs/benguela_fig_s2_priority_vs_poverty_scatter.png)
+
+Quadrant Statistics
+
+| Quadrant (score x poverty)  | Number of municipalities | Estimated rural poor (people) | Share of province’s rural poor (%) |
+| ---- | ---- | ---- | ---- |
+| High score & high poverty   | 1  | 96202.0  | 37.0 |
+| High score & lower poverty  | 4  | 44197.0  | 17.0 |
+| Lower score & high poverty  | 4  | 76396.0  | 30.0 |
+| Lower score & lower poverty | 1  | 41861.0  | 16.0 |
+
+- About 1 of 10 municipalities (10.0%) fall in the **high score & high poverty** quadrant, representing roughly 37% of the estimated rural poor in Benguela covered by the dataset.
+- Around 4 municipalities (40.0%) sit in the **lower score & high poverty** quadrant, accounting for about 30% of the estimated rural poor — these are potentially under-prioritized areas.
+
 :::
 
 :::{tab-item} Huambo
@@ -333,7 +342,19 @@ Quadrant Statistics
 
 :::{tab-item} Bie
 :sync: key3
-![S2-Bie]()
+![S2-Bie](../../outputs/figs/bie_fig_s2_priority_vs_poverty_scatter.png)
+
+Quadrant Statistics
+
+| Quadrant (score x poverty)  | Number of municipalities | Estimated rural poor (people) | Share of province’s rural poor (%) |
+| ---- | ---- | ---- | ---- |
+| High score & high poverty   | 2  | 22410.0  | 20.0 |
+| High score & lower poverty  | 2  | 42326.0  | 38.0 |
+| Lower score & high poverty  | 2  | 19672.0  | 18.0 |
+| Lower score & lower poverty | 2  | 27253.0  | 24.0 |
+
+- About 2 of 8 municipalities (25.0%) fall in the **high score & high poverty** quadrant, representing roughly 20% of the estimated rural poor in Bie covered by the dataset.
+- Around 2 municipalities (25.0%) sit in the **lower score & high poverty** quadrant, accounting for about 18% of the estimated rural poor — these are potentially under-prioritized areas.
 :::
 
 :::{tab-item} Moxico
@@ -344,15 +365,25 @@ Quadrant Statistics
 
 | Quadrant (score x poverty)  | Number of municipalities | Estimated rural poor (people) | Share of province’s rural poor (%) |
 | ---- | ---- | ---- | ---- |
-| High score & high poverty   | 3  | 1532.0  | 26.0  |
-| Lower score & lower poverty | 2  | 4467.0  | 74.0  |
+| High score & high poverty  | 1 | 333.0  | 10.0 |
+| High score & lower poverty | 1 | 3116.0 | 90.0 |
+| Lower score & high poverty | 1 | 15.0   | 0.0  |
 
-- About 3 of 5 municipalities (60.0%) fall in the **high score & high poverty** quadrant, representing roughly 26.0% of the estimated rural poor in Moxico covered by the dataset.
+- About 1 of 3 municipalities (33.3%) fall in the **high score & high poverty** quadrant, representing roughly 10% of the estimated rural poor in Moxico covered by the dataset.
+- Around 1 municipalities (33.3%) sit in the **lower score & high poverty** quadrant, accounting for about 0% of the estimated rural poor — these are potentially under-prioritized areas.
 :::
 
 :::{tab-item} Moxico Leste
 :sync: key5
-![S2-MoxicoLeste]()
+![S2-MoxicoLeste](../../outputs/figs/moxicoleste_fig_s2_priority_vs_poverty_scatter.png)
+
+Quadrant Statistics
+
+| Quadrant (score x poverty)  | Number of municipalities | Estimated rural poor (people) | Share of province’s rural poor (%) |
+| ---- | ---- | ---- | ---- |
+| High score & high poverty  | 1 | 620.0  | 100.0 |
+
+- About 1 of 1 municipalities (100.0%) fall in the **high score & high poverty** quadrant, representing roughly 100% of the estimated rural poor in Moxicoleste covered by the dataset.
 :::
 ::::
 
@@ -467,6 +498,7 @@ flowchart TB
 | Moxico | site_12 | unknown   | 7804    | 7.53   | 1.03  |
 | Moxico | site_8  | unknown   | 3706    | 0.31   | 0.49  |
 | Moxico | site_1  | unknown   | 1623    | 1.15   | 0.21  |
+
 :::
 
 :::{tab-item} Moxico Leste
@@ -486,7 +518,7 @@ and corridor infrastructure.
 ::::{tab-set}
 :::{tab-item} Benguela
 :sync: key1
-![S3-Benguela]()
+![S3-Benguela](../../outputs/figs/benguela_fig_s3_catchments_union.png)
 :::
 
 :::{tab-item} Huambo
@@ -496,7 +528,7 @@ and corridor infrastructure.
 
 :::{tab-item} Bie
 :sync: key3
-![S3-Bie]()
+![S3-Bie](../../outputs/figs/bie_fig_s3_catchments_union.png)
 :::
 
 :::{tab-item} Moxico
@@ -581,6 +613,13 @@ number of nearby projects** within 30 km.
 :::{tab-item} Benguela
 :sync: key1
 
+| Province (AOI) | Cluster ID | Projects within 10 km (Gov) | Projects within 10 km (WB) | Projects within 10 km (Other) | Total projects within 10 km |
+| ---- | ---- | ---- | ---- | ---- | ---- |
+| Benguela         | 2 | 0 | 0 | 0 | 0 |
+| Benguela         | 1 | 0 | 0 | 0 | 0 |
+| Benguela         | 4 | 0 | 0 | 0 | 0 |
+| Benguela         | 3 | 0 | 0 | 0 | 0 |
+
 :::
 
 :::{tab-item} Huambo
@@ -614,15 +653,27 @@ government and other partners closer to the priority nodes over time.
 :::{tab-item} Bie
 :sync: key3
 
+| Province (AOI) | Cluster ID | Projects within 10 km (Gov) | Projects within 10 km (WB) | Projects within 10 km (Other) | Total projects within 10 km |
+| ---- | ---- | ---- | ---- | ---- | ---- |
+| Bie  | 1 | 0 | 0 | 0 | 0 |
+
 :::
 
 :::{tab-item} Moxico
 :sync: key4
 
+| Province (AOI) | Cluster ID | Projects within 10 km (Gov) | Projects within 10 km (WB) | Projects within 10 km (Other) | Total projects within 10 km |
+| ---- | ---- | ---- | ---- | ---- | ---- |
+| Moxico  |  |  |  |  |  |
+
 :::
 
 :::{tab-item} Moxico Leste
 :sync: key5
+
+| Province (AOI) | Cluster ID | Projects within 10 km (Gov) | Projects within 10 km (WB) | Projects within 10 km (Other) | Total projects within 10 km |
+| ---- | ---- | ---- | ---- | ---- | ---- |
+| Moxico Leste |  |  |  |  |  |
 
 :::
 ::::
@@ -638,7 +689,7 @@ within 30 km, and color encodes the dominant financier.
 ::::{tab-set}
 :::{tab-item} Benguela
 :sync: key1
-![S4-Benguela]()
+![S4-Benguela](../../outputs/figs/benguela_fig_s4_cluster_synergies_30km.png)
 :::
 
 :::{tab-item} Huambo
@@ -648,17 +699,17 @@ within 30 km, and color encodes the dominant financier.
 
 :::{tab-item} Bie
 :sync: key3
-![S4-Bie]()
+![S4-Bie](../../outputs/figs/bie_fig_s4_cluster_synergies_30km.png)
 :::
 
 :::{tab-item} Moxico
 :sync: key4
-![S4-Moxico]()
+![S4-Moxico](../../outputs/figs/moxico_fig_s4_cluster_synergies_30km.png)
 :::
 
 :::{tab-item} Moxico Leste
 :sync: key5
-![S4-MoxicoLeste]()
+![S4-MoxicoLeste](../../outputs/figs/moxicoleste_fig_s4_cluster_synergies_30km.png)
 :::
 ::::
 
@@ -721,9 +772,31 @@ flowchart TB
 > flag indicating whether both origin and destination lie inside the top
 > priority mask.*
 
+::::{tab-set}
+:::{tab-item} Benguela
+:sync: key1
+
 | Province (AOI) | Origin Admin2 | Destination Admin2 | Modelled flow (relative) | Distance (km) | Both in top priority mask? |
 | ---- | ---- | ---- | ---- | ---- | ---- |
-| Huambo | Caala    | Huambo              | 97938.8  | 55.7  | Yes  |
+| Benguela | Benguela   | Catumbela  | 103693.4 | 32.9  | No  |
+| Benguela | Benguela   | Lobito     | 53129.5  | 80.8  | No  |
+| Benguela | Benguela   | Cubal      | 45650.2  | 91.9  | No  |
+| Benguela | Catumbela  | Lobito     | 41826.9  | 48.6  | No  |
+| Benguela | Cubal      | Ganda      | 39421.1  | 41.9  | Yes |
+| Benguela | Benguela   | Bocoio     | 27623.0  | 85.1  | No  |
+| Benguela | Benguela   | Caimbambo  | 24313.9  | 51.7  | No  |
+| Benguela | Bocoio     | Lobito     | 23924.1  | 49.8  | No  |
+| Benguela | Benguela   | Ganda      | 20842.4  | 128.3 | No  |
+| Benguela | Baia Farta | Benguela   | 20274.6  | 71.4  | No  |
+
+:::
+
+:::{tab-item} Huambo
+:sync: key2
+
+| Province (AOI) | Origin Admin2 | Destination Admin2 | Modelled flow (relative) | Distance (km) | Both in top priority mask? |
+| ---- | ---- | ---- | ---- | ---- | ---- |
+| Huambo | Caala    | Huambo              | 97938.8  | 55.7  | Yes |
 | Huambo | Bailundo | Huambo              | 55540.2  | 96.8  | No  |
 | Huambo | Huambo   | Tchikala-tcholoanga | 49511.4  | 35.9  | No  |
 | Huambo | Huambo   | Katchiungo          | 41293.9  | 57.3  | No  |
@@ -734,19 +807,23 @@ flowchart TB
 | Huambo | Bailundo | Londuimbali         | 16082.6  | 68.6  | No  |
 | Huambo | Huambo   | Ukuma               | 15144.4  | 70.5  | No  |
 
-::::{tab-set}
-:::{tab-item} Benguela
-:sync: key1
-
-:::
-
-:::{tab-item} Huambo
-:sync: key2
-
 :::
 
 :::{tab-item} Bie
 :sync: key3
+
+| Province (AOI) | Origin Admin2 | Destination Admin2 | Modelled flow (relative) | Distance (km) | Both in top priority mask? |
+| ---- | ---- | ---- | ---- | ---- | ---- |
+| Bie | Chinguar  | Kuito     | 75589.3  | 48.9  | No |
+| Bie | Catabola  | Kuito     | 73571.0  | 50.4  | No |
+| Bie | Camacupa  | Kuito     | 55258.8  | 83.2  | No |
+| Bie | Cunhinga  | Kuito     | 35870.2  | 64.8  | No |
+| Bie | Andulo    | Kuito     | 31944.5  | 153.1 | No |
+| Bie | Andulo    | N'harea   | 28148.5  | 75.9  | No |
+| Bie | Camacupa  | Catabola  | 19856.3  | 66.4  | No |
+| Bie | Kuito     | N'harea   | 19714.8  | 137.6 | No |
+| Bie | Chitembo  | Kuito     | 19496.8  | 106.6 | No |
+| Bie | Andulo    | Cunhinga  | 14262.2  | 88.4  | No |
 
 :::
 
@@ -765,10 +842,20 @@ flowchart TB
 | Moxico | Camanongue     | Lumbala N'guimbo   | 213.5   | 332.9 | No |
 | Moxico | Leua           | Luchazes           | 146.6   | 250.4 | No |
 | Moxico | Camanongue     | Luchazes           | 110.9   | 271.5 | No |
+
 :::
 
 :::{tab-item} Moxico Leste
 :sync: key5
+
+| Province (AOI) | Origin Admin2 | Destination Admin2 | Modelled flow (relative) | Distance (km) | Both in top priority mask? |
+| ---- | ---- | ---- | ---- | ---- | ---- |
+| Moxicoleste | Alto Zambeze  | Luau           | 53869.7 | 176.0 | No |
+| Moxicoleste | Luacano       | Luau           | 38895.3 | 85.5  | No |
+| Moxicoleste | Alto Zambeze  | Luacano        | 32368.1 | 111.3 | No |
+| Moxicoleste | Kameia Lumege | Luau           | 27949.1 | 131.3 | No |
+| Moxicoleste | Alto Zambeze  | Kameia Lumege  | 15639.8 | 183.5 | No |
+| Moxicoleste | Kameia Lumege | Luacano        | 12327.9 | 87.2  | No |
 
 :::
 ::::
@@ -780,7 +867,7 @@ flowchart TB
 ::::{tab-set}
 :::{tab-item} Benguela
 :sync: key1
-![S5-Benguela]()
+![S5-Benguela](../../outputs/figs/benguela_fig_s5_od_flows.png)
 :::
 
 :::{tab-item} Huambo
@@ -790,7 +877,7 @@ flowchart TB
 
 :::{tab-item} Bie
 :sync: key3
-![S5-Bie]()
+![S5-Bie](../../outputs/figs/bie_fig_s5_od_flows.png)
 :::
 
 :::{tab-item} Moxico
@@ -800,7 +887,7 @@ flowchart TB
 
 :::{tab-item} Moxico Leste
 :sync: key5
-![S5-MoxicoLeste]()
+![S5-MoxicoLeste](../../outputs/figs/moxicoleste_fig_s5_od_flows.png)
 :::
 ::::
 

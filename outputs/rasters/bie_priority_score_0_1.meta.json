@@ -1,0 +1,39 @@
+{
+  "aoi": "bie",
+  "use_components": {
+    "ACCESS": 1,
+    "POP": 1,
+    "VEG": 0,
+    "NTL": 0,
+    "DRT": 1
+  },
+  "weights_normalized": {
+    "ACC": 0.2916666666666667,
+    "POP": 0.20833333333333334,
+    "DRT": 0.08333333333333334,
+    "POV": 0.125,
+    "FOOD": 0.08333333333333334,
+    "MTT": 0.08333333333333334,
+    "RWI": 0.125
+  },
+  "masks": {
+    "require_rural": true,
+    "min_cropland": 0.05
+  },
+  "smoothing_radius_cells": 1,
+  "selection_rule": {
+    "top_pct_cells": 0.1,
+    "top_km2": null,
+    "min_cluster_cells": 30
+  },
+  "outputs": {
+    "priority_score_tif": "bie_priority_score_0_1.tif",
+    "priority_top_mask_tif": "bie_priority_top10_mask.tif"
+  },
+  "overlays_present": [
+    "FOOD",
+    "MTT",
+    "POV",
+    "RWI"
+  ]
+}

@@ -1,0 +1,131 @@
+{
+  "aoi": "bie",
+  "target_grid": "in-memory",
+  "baseline_source": "file",
+  "scenarios": [
+    {
+      "id": "baseline",
+      "desc": "ACC+POP+DRT, rural-only, min crop 5%, 3x3 smooth, Top10%",
+      "use_components": [
+        1,
+        1,
+        0,
+        0,
+        1
+      ],
+      "weights": {
+        "ACC": 0.5,
+        "POP": 0.3,
+        "VEG": 0.0,
+        "NTL": 0.0,
+        "DRT": 0.2
+      },
+      "masks": {
+        "require_rural": true,
+        "min_cropland": 0.05
+      },
+      "smooth_radius_cells": 1,
+      "selection": {
+        "top_pct_cells": 0.1,
+        "top_km2": null,
+        "min_cluster_cells": 30
+      },
+      "outputs": {
+        "mask_tif": "bie_priority_mask_baseline.tif"
+      }
+    },
+    {
+      "id": "no_drought",
+      "desc": "ACC+POP only; rural-only; min crop 5%; Top10%",
+      "use_components": [
+        1,
+        1,
+        0,
+        0,
+        0
+      ],
+      "weights": {
+        "ACC": 0.7,
+        "POP": 0.3,
+        "VEG": 0.0,
+        "NTL": 0.0,
+        "DRT": 0.0
+      },
+      "masks": {
+        "require_rural": true,
+        "min_cropland": 0.05
+      },
+      "smooth_radius_cells": 1,
+      "selection": {
+        "top_pct_cells": 0.1,
+        "top_km2": null,
+        "min_cluster_cells": 30
+      },
+      "outputs": {
+        "mask_tif": "bie_priority_mask_no_drought.tif"
+      }
+    },
+    {
+      "id": "veg_signal",
+      "desc": "ACC+POP+VEG; rural-only; min crop 10%; Top10%",
+      "use_components": [
+        1,
+        1,
+        1,
+        0,
+        0
+      ],
+      "weights": {
+        "ACC": 0.5,
+        "POP": 0.3,
+        "VEG": 0.2,
+        "NTL": 0.0,
+        "DRT": 0.0
+      },
+      "masks": {
+        "require_rural": true,
+        "min_cropland": 0.1
+      },
+      "smooth_radius_cells": 1,
+      "selection": {
+        "top_pct_cells": 0.1,
+        "top_km2": null,
+        "min_cluster_cells": 30
+      },
+      "outputs": {
+        "mask_tif": "bie_priority_mask_veg_signal.tif"
+      }
+    },
+    {
+      "id": "top_800km2",
+      "desc": "ACC+POP+DRT, rural-only; select fixed 800 km\u00b2; mild smooth",
+      "use_components": [
+        1,
+        1,
+        0,
+        0,
+        1
+      ],
+      "weights": {
+        "ACC": 0.5,
+        "POP": 0.3,
+        "VEG": 0.0,
+        "NTL": 0.0,
+        "DRT": 0.2
+      },
+      "masks": {
+        "require_rural": true,
+        "min_cropland": 0.05
+      },
+      "smooth_radius_cells": 1,
+      "selection": {
+        "top_pct_cells": null,
+        "top_km2": 800.0,
+        "min_cluster_cells": 30
+      },
+      "outputs": {
+        "mask_tif": "bie_priority_mask_top_800km2.tif"
+      }
+    }
+  ]
+}

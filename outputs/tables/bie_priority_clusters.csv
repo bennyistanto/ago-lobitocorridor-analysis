@@ -1,0 +1,2 @@
+cluster_id,area_km2,pop,cropland_km2,pct_electrified,pct_rural,mean_travel_min,drought_mean_0_1,risk_roadcells,flood_depth_mean_m,rwi_mean,centroid_lon,centroid_lat,ADM2CD_c,NAM_1,NAM_2,share_le_30m,share_le_60m,share_le_120m,share_le_240m
+1,26.89,18307.0,11.17,0.438,0.438,12.4,,0,,-0.21,16.9875,-12.41432,AGO003008,Bié,Kuito,0.969,1.0,1.0,1.0

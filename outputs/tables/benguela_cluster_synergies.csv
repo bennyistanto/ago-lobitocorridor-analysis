@@ -1,0 +1,5 @@
+cluster_id,lon,lat,dist_km_nearest_gov,dist_km_nearest_wb,dist_km_nearest_oth,count_gov_le5km,count_wb_le5km,count_oth_le5km,count_gov_le10km,count_wb_le10km,count_oth_le10km,count_gov_le30km,count_wb_le30km,count_oth_le30km
+2,14.27965,-13.10424,,,,0,0,0,0,0,0,0,0,0
+1,14.57476,-13.01548,,,,0,0,0,0,0,0,0,0,0
+4,14.4678,-13.21907,,,,0,0,0,0,0,0,0,0,0
+3,14.11458,-13.04036,,,,0,0,0,0,0,0,0,0,0

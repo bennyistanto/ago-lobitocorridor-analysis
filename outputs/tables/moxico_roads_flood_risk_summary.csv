@@ -1,2 +1,2 @@
 aoi,date_utc,cell_km2,total_road_cells,total_risk_cells,risk_pct_of_roads,risk_near_priority_cells,near_prio_pct_of_risk,flood_depth_threshold_m,road_filter_applied,flood_exceed_fraction_min,notes
-moxico,2025-11-20 14:50:44 UTC,1.0,22943,7491,32.65,23,0.31,0.3,ALL,0.25,Risk=roads ∩ flood; near-priority=within 1 cell of Top10% priority; method=fraction≥0.25; roads_all_touched=False
+moxico,2025-11-25 15:33:02 UTC,1.0,22943,7491,32.65,23,0.31,0.3,ALL,0.25,Risk=roads ∩ flood; near-priority=within 1 cell of Top10% priority; method=fraction≥0.25; roads_all_touched=False

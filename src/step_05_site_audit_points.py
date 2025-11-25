@@ -30,16 +30,17 @@ Notes
 
 from __future__ import annotations
 from typing import Dict, Any
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import geopandas as gpd
 from scipy.ndimage import convolve
 
 from config import (
-    PATHS, out_r, 
-    SITE_AUDIT_CSV, 
-    SITE_AUDIT_RADIUS_CELLS, 
-    SITE_ID_FIELD, 
+    PATHS, out_r,
+    SITE_AUDIT_CSV,
+    SITE_AUDIT_RADIUS_CELLS,
+    SITE_ID_FIELD,
     ROADS1K_TIF, get_logger
 )
 from utils_geo import open_template, estimate_cell_area_km2
@@ -60,10 +61,47 @@ def _assert_same_shape(*das) -> None:
     assert len(shapes) == 1, f"Rasters must share identical shape; got {shapes}"
 
 
+def _write_empty_site_audit(reason: str) -> None:
+    """
+    Write an EMPTY site audit table with the expected columns and exit Step 05.
+
+    Used when the site layer is missing or cannot be read, so that the
+    00–14 pipeline can continue without raising.
+    """
+    log.warning(
+        "Step 05: site audit will be EMPTY.\n"
+        f"  Reason: {reason}\n"
+        "  This is expected if the AOI has no project locations.\n"
+        "  Downstream steps should handle an empty site audit table."
+    )
+
+    cols = [
+        "site_id", "x", "y", "lon", "lat", "row", "col",
+        "travel_min", "veg_index", "ntl", "drought_pct",
+        "cropland_cells_5km", "cropland_km2_5km",
+        "electrified_cells_5km", "electrified_share_5km",
+        "near_road_flag",
+    ]
+    out_df = pd.DataFrame(columns=cols)
+    out_df.to_csv(SITE_AUDIT_CSV, index=False)
+    log.info(
+        f"Saved EMPTY site audit → {SITE_AUDIT_CSV} | "
+        "rows=0 | skipped_outside_grid=0"
+    )
+    log.info("Step 05 complete (no sites).")
+
+
 def main() -> None:
-    # ---------------------------------------------------------------------
-    # Load base grid and all 1-km rasters
-    # ---------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # 0) If site layer is missing, bail out cleanly with empty CSV
+    # ------------------------------------------------------------------
+    if not Path(PATHS.SITES).exists():
+        _write_empty_site_audit(f"site layer not found: {PATHS.SITES}")
+        return
+
+    # ------------------------------------------------------------------
+    # 1) Load base grid and all 1-km rasters
+    # ------------------------------------------------------------------
     T       = open_template(PATHS.TRAVEL)
     veg     = open_template(out_r("veg_1km"))
     ntl     = open_template(out_r("ntl_1km"))
@@ -82,19 +120,28 @@ def main() -> None:
         f"size={T.rio.height}x{T.rio.width} | cell={resx:.4f}x{resy:.4f}"
     )
 
-    # ---------------------------------------------------------------------
-    # Load sites and prep neighborhood stats (5 km radius ≈ 5 cells)
-    # ---------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # 2) Load sites and prep neighborhood stats (5 km radius ≈ 5 cells)
+    # ------------------------------------------------------------------
     try:
-        sites_xy  = gpd.read_file(PATHS.SITES).to_crs(T.rio.crs)     # raster CRS
-        sites_ll  = gpd.read_file(PATHS.SITES).to_crs(4326)          # WGS84 lon/lat
+        sites_xy = gpd.read_file(PATHS.SITES).to_crs(T.rio.crs)  # raster CRS
+        sites_ll = gpd.read_file(PATHS.SITES).to_crs(4326)       # WGS84 lon/lat
     except Exception as e:
-        raise RuntimeError(f"Failed to read sites from {PATHS.SITES}") from e
+        _write_empty_site_audit(f"failed to read site layer {PATHS.SITES}: {e}")
+        return
 
     if len(sites_xy) != len(sites_ll):
-        raise RuntimeError("Sites length mismatch after CRS transforms (unexpected).")
+        _write_empty_site_audit(
+            "sites length mismatch after CRS transforms; "
+            f"sites_xy={len(sites_xy)}, sites_ll={len(sites_ll)}"
+        )
+        return
 
     n_sites = len(sites_xy)
+    if n_sites == 0:
+        _write_empty_site_audit("site layer contains zero features")
+        return
+
     log.info(f"Loaded {n_sites} site(s) from {PATHS.SITES.name}")
 
     radius = SITE_AUDIT_RADIUS_CELLS
@@ -108,9 +155,9 @@ def main() -> None:
     cell_km2    = estimate_cell_area_km2(cl_frac)
     cl_nei_km2  = convolve(np.nan_to_num(cl_frac.values, nan=0), ker, mode="constant", cval=0) * cell_km2
 
-    # ---------------------------------------------------------------------
-    # Sample per site
-    # ---------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # 3) Sample per site
+    # ------------------------------------------------------------------
     rows: list[Dict[str, Any]] = []
     skipped = 0
 
@@ -140,7 +187,7 @@ def main() -> None:
         nn = float(ntl.values[r, c])    # night lights
         dd = float(drt.values[r, c])    # drought %
 
-        # --- Site identifier: prefer configured field (e.g., "no"); fallback to row index ---
+        # --- Site identifier
         sid = None
         if SITE_ID_FIELD:
             try:
@@ -155,38 +202,30 @@ def main() -> None:
             except Exception:
                 site_id_value = str(sid)
 
-        # Build output row with standard coordinate columns
         row: Dict[str, Any] = {
             "site_id": site_id_value,
-            # standard XY in raster CRS
             "x": float(pt_xy.x),
             "y": float(pt_xy.y),
-            # standard lon/lat in EPSG:4326 (if available)
             "lon": float(pt_ll.x) if pt_ll is not None else np.nan,
             "lat": float(pt_ll.y) if pt_ll is not None else np.nan,
-            # sampled cell address
             "row": int(r),
             "col": int(c),
-
             "travel_min": tt,
             "veg_index": vv,
             "ntl": nn,
             "drought_pct": dd,
-            # Cropland around site (both cell-count and area-true)
             "cropland_cells_5km": int(cl_nei[r, c]),
             "cropland_km2_5km": float(cl_nei_km2[r, c]),
-            # Electrification around site (cell-count + share within the 5 km kernel)
             "electrified_cells_5km": int(elg_nei[r, c]),
             "electrified_share_5km": (float(elg_nei[r, c]) / ker_cells) if ker_cells > 0 else np.nan,
-            # Quick proximity flag to main road (1 km cell)
             "near_road_flag": int(np.nan_to_num(roads.values[r, c], nan=0)),
         }
 
         rows.append(row)
 
-    # ---------------------------------------------------------------------
-    # Save
-    # ---------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # 4) Save
+    # ------------------------------------------------------------------
     out_df = pd.DataFrame(rows)
     if out_df.empty:
         log.warning(
@@ -206,7 +245,7 @@ def main() -> None:
                     log.warning(f"  - site[{i}]: non-Point or empty geometry")
         except Exception as e:
             log.warning(f"  (CRS preview failed: {e})")
-    
+
     out_df.to_csv(SITE_AUDIT_CSV, index=False)
     log.info(
         f"Saved site audit → {SITE_AUDIT_CSV} | "
