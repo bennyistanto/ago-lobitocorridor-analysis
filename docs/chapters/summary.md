@@ -124,27 +124,27 @@ segments, rather than being evenly spread across all municipalities.
 ::::{tab-set}
 :::{tab-item} Benguela
 :sync: key1
-![S1-Benguela](../../outputs/figs/benguela_fig_s1_priority_clusters_adm2_roads.png)
+![S1-Benguela](../../outputs/figs/AGO_A4L_LC_Benguela_PriorityArea.png)
 :::
 
 :::{tab-item} Huambo
 :sync: key2
-![S1-Huambo](../../outputs/figs/huambo_fig_s1_priority_clusters_adm2_roads.png)
+![S1-Huambo](../../outputs/figs/AGO_A4L_LC_Huambo_PriorityArea.png)
 :::
 
 :::{tab-item} Bie
 :sync: key3
-![S1-Bie](../../outputs/figs/bie_fig_s1_priority_clusters_adm2_roads.png)
+![S1-Bie](../../outputs/figs/AGO_A4L_LC_Bie_PriorityArea.png)
 :::
 
 :::{tab-item} Moxico
 :sync: key4
-![S1-Moxico](../../outputs/figs/moxico_fig_s1_priority_clusters_adm2_roads.png)
+![S1-Moxico](../../outputs/figs/AGO_A4L_LC_Moxico_PriorityArea.png)
 :::
 
 :::{tab-item} Moxico Leste
 :sync: key5
-![S1-MoxicoLeste](../../outputs/figs/moxicoleste_fig_s1_priority_clusters_adm2_roads.png)
+![S1-MoxicoLeste](../../outputs/figs/AGO_A4L_LC_MoxicoLeste_PriorityArea.png)
 :::
 ::::
 
