@@ -1,0 +1,8 @@
+scenario,min_saved_threshold,pop_gaining,area_km2
+upgrade_risk_roads_to_45kmh,5,987712.125,31590.247907747475
+upgrade_risk_roads_to_45kmh,10,94230.078125,14647.675034582151
+upgrade_risk_roads_to_45kmh,15,18963.044921875,5096.437021374712
+upgrade_risk_roads_to_45kmh,30,73.09687805175781,169.3397579814754
+upgrade_risk_roads_to_45kmh,60,41.49871826171875,62.03337187165842
+upgrade_risk_roads_to_45kmh,newly_within_60min,41507.96875,910.773500053434
+upgrade_risk_roads_to_45kmh,newly_within_120min,26320.177734375,968.6203373402424

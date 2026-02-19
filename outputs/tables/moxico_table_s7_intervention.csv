@@ -1,0 +1,8 @@
+Province (AOI),scenario,min_saved_threshold,pop_gaining,area_km2
+moxico,upgrade_risk_roads_to_45kmh,5,73048.7265625,188625.878391384
+moxico,upgrade_risk_roads_to_45kmh,10,48783.48046875,160092.97514822002
+moxico,upgrade_risk_roads_to_45kmh,15,32171.45703125,140847.74618389586
+moxico,upgrade_risk_roads_to_45kmh,30,17294.53125,90413.88905719788
+moxico,upgrade_risk_roads_to_45kmh,60,4595.7744140625,41872.80997299362
+moxico,upgrade_risk_roads_to_45kmh,newly_within_60min,11042.0458984375,2343.9555812894337
+moxico,upgrade_risk_roads_to_45kmh,newly_within_120min,5015.236328125,6622.782721082141

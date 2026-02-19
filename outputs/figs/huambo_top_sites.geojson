@@ -1,0 +1,10 @@
+{
+"type": "FeatureCollection",
+"name": "huambo_top_sites",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "no": 1, "prov": "Huambo", "muni": "Caala", "sector": "Roads", "lat": -12.8571, "lon": 15.5264, "project": "Terraplanagem de 10 km de estrada da Aldeia de Cassoco a Aldeia de Cangongo, Município da  Caála", "location": "Caála", "site_index": 1, "pop_60min": 1367563.375, "rank_60min": 1 }, "geometry": { "type": "Point", "coordinates": [ 15.5264, -12.8571 ] } },
+{ "type": "Feature", "properties": { "no": 2, "prov": "Huambo", "muni": "Caala", "sector": "Water", "lat": -12.80258, "lon": 15.59792, "project": "Construção do sistema de abastecimento de água a partir do rio Kunhongâmwa para a Sede do Município da Caála", "location": "Caála", "site_index": 2, "pop_60min": 1355368.75, "rank_60min": 2 }, "geometry": { "type": "Point", "coordinates": [ 15.59792, -12.80258 ] } },
+{ "type": "Feature", "properties": { "no": 36, "prov": "Huambo", "muni": "Huambo", "sector": "Energy", "lat": -12.6348741, "lon": 15.7649885, "project": "Projectos da Implementar energia solar para irrigação e electrificação rural - Cooperativa Efumbuluko/ Aldeia de Dende", "location": "SECTOR DA CHIPIPA", "site_index": 20, "pop_60min": 1338283.5, "rank_60min": 3 }, "geometry": { "type": "Point", "coordinates": [ 15.7649885, -12.6348741 ] } }
+]
+}

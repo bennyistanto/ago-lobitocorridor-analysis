@@ -1,0 +1,11 @@
+{
+"type": "FeatureCollection",
+"name": "moxicoleste_od_zone_centroids",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "ADM2CD_c": "AGO019001", "NAM_2": "Alto Zambeze", "NAM_1": "Moxico Leste", "lon": 22.908215254467759, "lat": -12.209336083052378, "pop": 164408.8125, "mass": 156350.88530182466, "rwi_z": -0.1960461, "in_priority_mask": false }, "geometry": { "type": "Point", "coordinates": [ 22.908215254467759, -12.209336083052378 ] } },
+{ "type": "Feature", "properties": { "ADM2CD_c": "AGO019003", "NAM_2": "Kameia Lumege", "NAM_1": "Moxico Leste", "lon": 21.263851457244986, "lat": -11.837972370197786, "pop": 43674.91015625, "mass": 41490.893392131431, "rwi_z": -0.20002493, "in_priority_mask": false }, "geometry": { "type": "Point", "coordinates": [ 21.263851457244986, -11.837972370197786 ] } },
+{ "type": "Feature", "properties": { "ADM2CD_c": "AGO019005", "NAM_2": "Luacano", "NAM_1": "Moxico Leste", "lon": 22.04644781585214, "lat": -11.669554941499785, "pop": 30847.67578125, "mass": 29064.512958519623, "rwi_z": -0.23122178, "in_priority_mask": false }, "geometry": { "type": "Point", "coordinates": [ 22.04644781585214, -11.669554941499785 ] } },
+{ "type": "Feature", "properties": { "ADM2CD_c": "AGO019006", "NAM_2": "Luau", "NAM_1": "Moxico Leste", "lon": 21.997868306510306, "lat": -10.90182356202823, "pop": 133112.9375, "mass": 127614.46885325389, "rwi_z": -0.16522709, "in_priority_mask": false }, "geometry": { "type": "Point", "coordinates": [ 21.997868306510306, -10.90182356202823 ] } }
+]
+}

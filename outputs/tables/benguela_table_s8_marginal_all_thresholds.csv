@@ -1,0 +1,101 @@
+site_index,lon,lat,thresh_min,pop_marginal,pop_total_catch,pct_marginal,no,project,sector,muni
+1,13.502981,-12.430235,30,107.1927261352539,1315503.875,0.0081484158406795,1,Intervenção nas valas de irrigação do perímetro agrário da Catumbela,Agro-pecuária,Catumbela
+1,13.502981,-12.430235,60,92.70947265625,1643761.5,0.005640080550387,1,Intervenção nas valas de irrigação do perímetro agrário da Catumbela,Agro-pecuária,Catumbela
+1,13.502981,-12.430235,120,19913.7109375,1878976.5,1.0598169236017587,1,Intervenção nas valas de irrigação do perímetro agrário da Catumbela,Agro-pecuária,Catumbela
+1,13.502981,-12.430235,240,35714.125,2895607.0,1.233389924806785,1,Intervenção nas valas de irrigação do perímetro agrário da Catumbela,Agro-pecuária,Catumbela
+2,13.92658333,-11.99188889,30,16329.69140625,16329.69140625,100.0,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+2,13.92658333,-11.99188889,60,29901.04296875,40200.3828125,74.37999560405305,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+2,13.92658333,-11.99188889,120,44330.65625,1731844.5,2.559736526576145,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+2,13.92658333,-11.99188889,240,29934.267578125,2318866.0,1.2909011378029176,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+3,13.92658333,-11.98361111,30,16150.111328125,16150.111328125,100.0,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+3,13.92658333,-11.98361111,60,28983.58984375,38185.515625,75.90205178419664,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+3,13.92658333,-11.98361111,120,41793.1640625,1691232.625,2.47116590850416,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+3,13.92658333,-11.98361111,240,29726.08203125,2308505.5,1.2876764656289534,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+4,13.93563889,-11.97777778,30,14024.146484375,14024.146484375,100.0,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+4,13.93563889,-11.97777778,60,25859.015625,30026.427734375,86.12085278261709,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+4,13.93563889,-11.97777778,120,25939.765625,1184787.25,2.1894028337155045,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+4,13.93563889,-11.97777778,240,26984.525390625,2263626.75,1.1920925298583347,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+5,13.96986111,-11.97677778,30,18861.99609375,18861.99609375,100.0,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+5,13.96986111,-11.97677778,60,30775.392578125,41094.9375,74.88852508444623,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+5,13.96986111,-11.97677778,120,44877.4921875,1734406.875,2.587483527329768,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+5,13.96986111,-11.97677778,240,29982.599609375,2319552.75,1.2926026195944456,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+6,13.96986111,-11.97169444,30,18959.25,18959.25,100.0,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+6,13.96986111,-11.97169444,60,30335.83203125,39850.8359375,76.12345216252717,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+6,13.96986111,-11.97169444,120,43418.70703125,1717921.875,2.527397064039947,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+6,13.96986111,-11.97169444,240,29854.07421875,2315650.5,1.2892305733853189,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+7,13.97575,-11.94577778,30,16180.1640625,16180.1640625,100.0,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+7,13.97575,-11.94577778,60,27091.087890625,32921.8828125,82.2889992195066,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+7,13.97575,-11.94577778,120,31441.71484375,1414899.875,2.222186558872231,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+7,13.97575,-11.94577778,240,28441.8125,2280856.5,1.2469794789808126,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+8,13.95425,-12.04463889,30,18573.8203125,18573.8203125,100.0,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+8,13.95425,-12.04463889,60,37687.51953125,57246.390625,65.83387899182509,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+8,13.95425,-12.04463889,120,61864.53125,1798898.5,3.4390228937319143,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+8,13.95425,-12.04463889,240,31315.482421875,2483286.0,1.2610501739177444,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+9,13.95227778,-12.04691667,30,18573.8203125,18573.8203125,100.0,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+9,13.95227778,-12.04691667,60,37687.51953125,57246.390625,65.83387899182509,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+9,13.95227778,-12.04691667,120,61864.53125,1798898.5,3.4390228937319143,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+9,13.95227778,-12.04691667,240,31315.482421875,2483286.0,1.2610501739177444,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+10,13.94530556,-12.08802778,30,17214.15234375,17214.15234375,100.0,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+10,13.94530556,-12.08802778,60,35381.44921875,58305.75,60.68260715066695,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+10,13.94530556,-12.08802778,120,60123.7578125,1802438.0,3.335690759543463,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+10,13.94530556,-12.08802778,240,31597.267578125,2542161.5,1.242929199349648,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+11,13.91877778,-12.01580556,30,16262.0986328125,16262.0986328125,100.0,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+11,13.91877778,-12.01580556,60,30590.1171875,42846.6015625,71.39450054837707,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+11,13.91877778,-12.01580556,120,47477.71875,1762516.625,2.693745867503519,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+11,13.91877778,-12.01580556,240,30358.67578125,2360293.5,1.2862246064419531,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+12,13.92405556,-12.01369444,30,16262.0986328125,16262.0986328125,100.0,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+12,13.92405556,-12.01369444,60,30590.1171875,42846.6015625,71.39450054837707,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+12,13.92405556,-12.01369444,120,47477.71875,1762516.625,2.693745867503519,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+12,13.92405556,-12.01369444,240,30358.67578125,2360293.5,1.2862246064419531,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+13,13.92233333,-12.10586111,30,21567.521484375,21567.521484375,100.0,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+13,13.92233333,-12.10586111,60,38440.203125,134637.6875,28.55084920037712,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+13,13.92233333,-12.10586111,120,68091.390625,1827723.0,3.725476487684403,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+13,13.92233333,-12.10586111,240,32216.9609375,2604358.5,1.237040174672573,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+14,13.85897222,-11.81066667,30,0.0,0.0,0.0,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+14,13.85897222,-11.81066667,60,37.668975830078125,37.668975830078125,100.0,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+14,13.85897222,-11.81066667,120,528.269775390625,2334.03759765625,22.63330187658901,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+14,13.85897222,-11.81066667,240,6369.58203125,1539814.125,0.4136591506620969,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+15,13.91002778,-12.15422222,30,18712.109375,18712.109375,100.0,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+15,13.91002778,-12.15422222,60,35615.0859375,167291.3125,21.289262069421568,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+15,13.91002778,-12.15422222,120,73072.5625,1835608.375,3.980836190072406,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+15,13.91002778,-12.15422222,240,32327.998046875,2609018.5,1.2390865778404792,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+16,14.06216667,-11.86805556,30,7053.6416015625,7053.6416015625,100.0,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+16,14.06216667,-11.86805556,60,24779.18359375,24846.88671875,99.7275186796384,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+16,14.06216667,-11.86805556,120,17815.01953125,728598.6875,2.445107277420123,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+16,14.06216667,-11.86805556,240,21385.7890625,2189138.5,0.9769043421647374,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+17,14.02297222,-12.11763889,30,147.31021118164062,147.31021118164062,100.0,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+17,14.02297222,-12.11763889,60,539.0011596679688,539.0011596679688,100.0,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+17,14.02297222,-12.11763889,120,10047.638671875,33155.58203125,30.30451603113116,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+17,14.02297222,-12.11763889,240,17186.302734375,2048060.875,0.8391499952058309,2,Intervenção nas 16 valas de irrigação do perímetro agrário – Egito Praia,Agro-pecuária,Egito Praia
+18,14.63861111,-12.08,30,905.6903076171876,905.6903076171876,100.0,3,"Reabilitação e ampliação de um dique de irrigação e criação de perímetros irrigados, numa extensão de 10 km na localidade das plantações da Ganda, sede municipal",Agro-pecuária,Ganda
+18,14.63861111,-12.08,60,8793.099609375,8793.099609375,100.0,3,"Reabilitação e ampliação de um dique de irrigação e criação de perímetros irrigados, numa extensão de 10 km na localidade das plantações da Ganda, sede municipal",Agro-pecuária,Ganda
+18,14.63861111,-12.08,120,162862.203125,173912.46875,93.64607626789268,3,"Reabilitação e ampliação de um dique de irrigação e criação de perímetros irrigados, numa extensão de 10 km na localidade das plantações da Ganda, sede municipal",Agro-pecuária,Ganda
+18,14.63861111,-12.08,240,31717.345703125,2229082.5,1.4228879237589906,3,"Reabilitação e ampliação de um dique de irrigação e criação de perímetros irrigados, numa extensão de 10 km na localidade das plantações da Ganda, sede municipal",Agro-pecuária,Ganda
+19,13.8477,-12.30325,30,16765.267578125,22914.75,73.16365039166912,4,Construção de um dique que vai alimentar as valas de irrigação do Culango numa extensão de 8 km de valas,Agro-pecuária,Lobito
+19,13.8477,-12.30325,60,81865.515625,961440.5,8.514881121088616,4,Construção de um dique que vai alimentar as valas de irrigação do Culango numa extensão de 8 km de valas,Agro-pecuária,Lobito
+19,13.8477,-12.30325,120,116515.390625,1950417.125,5.97387036503794,4,Construção de um dique que vai alimentar as valas de irrigação do Culango numa extensão de 8 km de valas,Agro-pecuária,Lobito
+19,13.8477,-12.30325,240,34408.3046875,2782416.0,1.2366340866175294,4,Construção de um dique que vai alimentar as valas de irrigação do Culango numa extensão de 8 km de valas,Agro-pecuária,Lobito
+20,14.8,-12.9167,30,13506.0146484375,29825.857421875,45.282904888199006,5,Requalificação da rede de distribuição eléctrica na sede do Município,Energia,Babaera
+20,14.8,-12.9167,60,21195.4375,166425.34375,12.73570300196541,5,Requalificação da rede de distribuição eléctrica na sede do Município,Energia,Babaera
+20,14.8,-12.9167,120,70893.59375,551428.25,12.856358692177992,5,Requalificação da rede de distribuição eléctrica na sede do Município,Energia,Babaera
+20,14.8,-12.9167,240,40223.38671875,2171496.5,1.852334863019581,5,Requalificação da rede de distribuição eléctrica na sede do Município,Energia,Babaera
+21,14.7682393,-12.3545192,30,93827.40625,93827.40625,100.0,6,Requalificação da rede de distribuição eléctrica na sede do Município,Energia,Balombo
+21,14.7682393,-12.3545192,60,175871.34375,175871.34375,100.0,6,Requalificação da rede de distribuição eléctrica na sede do Município,Energia,Balombo
+21,14.7682393,-12.3545192,120,234814.125,390967.71875,60.05972200230406,6,Requalificação da rede de distribuição eléctrica na sede do Município,Energia,Balombo
+21,14.7682393,-12.3545192,240,51178.34765625,2847281.0,1.7974463235715057,6,Requalificação da rede de distribuição eléctrica na sede do Município,Energia,Balombo
+22,14.00276944,-13.02198333,30,45508.9296875,65897.359375,69.060323689943,7,Requalificação da rede eléctrica na sede do Município do Caimbambo,Energia,Caimbambo
+22,14.00276944,-13.02198333,60,36237.87109375,240769.421875,15.050861031914415,7,Requalificação da rede eléctrica na sede do Município do Caimbambo,Energia,Caimbambo
+22,14.00276944,-13.02198333,120,66628.9921875,1395286.0,4.775292820790863,7,Requalificação da rede eléctrica na sede do Município do Caimbambo,Energia,Caimbambo
+22,14.00276944,-13.02198333,240,45922.3046875,3139524.0,1.4627155163489751,7,Requalificação da rede eléctrica na sede do Município do Caimbambo,Energia,Caimbambo
+24,13.48618333,-12.60254167,30,484.6084289550781,909607.5,0.0532766527271463,9,Reabilitação da via de acesso ao bairro Capilongo,Vias de Acesso,Benguela
+24,13.48618333,-12.60254167,60,76.39701080322266,1654574.5,0.004617320695032,9,Reabilitação da via de acesso ao bairro Capilongo,Vias de Acesso,Benguela
+24,13.48618333,-12.60254167,120,1735.366943359375,1824859.75,0.095095907691502,9,Reabilitação da via de acesso ao bairro Capilongo,Vias de Acesso,Benguela
+24,13.48618333,-12.60254167,240,29420.35546875,2882267.5,1.0207364676855983,9,Reabilitação da via de acesso ao bairro Capilongo,Vias de Acesso,Benguela
+25,14.25963,-13.04825,30,18066.0703125,158658.421875,11.38677045882472,10,"Construção de ponte sobre o rio Cubal da Ganda Cassiva, numa extensão de 5 metros de",Vias de Acesso,Cubal
+25,14.25963,-13.04825,60,39384.11328125,393439.75,10.010201887646076,10,"Construção de ponte sobre o rio Cubal da Ganda Cassiva, numa extensão de 5 metros de",Vias de Acesso,Cubal
+25,14.25963,-13.04825,120,84020.734375,784073.9375,10.71591980762656,10,"Construção de ponte sobre o rio Cubal da Ganda Cassiva, numa extensão de 5 metros de",Vias de Acesso,Cubal
+25,14.25963,-13.04825,240,50564.22265625,3173738.5,1.5932069594344334,10,"Construção de ponte sobre o rio Cubal da Ganda Cassiva, numa extensão de 5 metros de",Vias de Acesso,Cubal
+26,14.25974,-13.04839,30,18066.0703125,158658.421875,11.38677045882472,10,"Construção de ponte sobre o rio Cubal da Ganda Cassiva, numa extensão de 5 metros de",Vias de Acesso,Cubal
+26,14.25974,-13.04839,60,39384.11328125,393439.75,10.010201887646076,10,"Construção de ponte sobre o rio Cubal da Ganda Cassiva, numa extensão de 5 metros de",Vias de Acesso,Cubal
+26,14.25974,-13.04839,120,84020.734375,784073.9375,10.71591980762656,10,"Construção de ponte sobre o rio Cubal da Ganda Cassiva, numa extensão de 5 metros de",Vias de Acesso,Cubal
+26,14.25974,-13.04839,240,50564.22265625,3173738.5,1.5932069594344334,10,"Construção de ponte sobre o rio Cubal da Ganda Cassiva, numa extensão de 5 metros de",Vias de Acesso,Cubal

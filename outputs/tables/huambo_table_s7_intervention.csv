@@ -1,0 +1,8 @@
+Province (AOI),scenario,min_saved_threshold,pop_gaining,area_km2
+huambo,upgrade_risk_roads_to_45kmh,5,37539.2890625,2791.9572634467995
+huambo,upgrade_risk_roads_to_45kmh,10,16.825284957885742,1.6857503492224446
+huambo,upgrade_risk_roads_to_45kmh,15,0.0,0.0
+huambo,upgrade_risk_roads_to_45kmh,30,0.0,0.0
+huambo,upgrade_risk_roads_to_45kmh,60,0.0,0.0
+huambo,upgrade_risk_roads_to_45kmh,newly_within_60min,6142.931640625,150.30957889570942
+huambo,upgrade_risk_roads_to_45kmh,newly_within_120min,5790.5283203125,128.52995843228413

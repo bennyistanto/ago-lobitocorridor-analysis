@@ -1,0 +1,10 @@
+{
+"type": "FeatureCollection",
+"name": "moxico_top_sites",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "no": 2, "prov": "Moxico", "muni": "Camanongue", "sector": "Communication routes", "location": "Chinanamata", "lat": -11.5212064, "lon": 20.2367976, "site_index": 2, "pop_60min": 68132.6328125, "rank_60min": 2 }, "geometry": { "type": "Point", "coordinates": [ 20.2367976, -11.5212064 ] } },
+{ "type": "Feature", "properties": { "no": 9, "prov": "Moxico", "muni": "Luena", "sector": "Telecommunications", "location": "Moxico Velho", "lat": -11.8465279, "lon": 20.0330212, "site_index": 9, "pop_60min": 480540.75, "rank_60min": 1 }, "geometry": { "type": "Point", "coordinates": [ 20.0330212, -11.8465279 ] } },
+{ "type": "Feature", "properties": { "no": 11, "prov": "Moxico", "muni": "Lumbala Nguimbo", "sector": "Energy", "location": "Sede Lumbala-Nguimbo", "lat": -14.1098093, "lon": 21.4365504, "site_index": 11, "pop_60min": 47239.6953125, "rank_60min": 3 }, "geometry": { "type": "Point", "coordinates": [ 21.4365504, -14.1098093 ] } }
+]
+}

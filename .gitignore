@@ -98,10 +98,10 @@ src/*/_version.py
 data/rasters/
 data/vectors/
 !data/.gitkeep
-outputs/rasters/
-outputs/tables/
-outputs/figs/
-outputs/analysis_summary/
+# outputs/rasters/
+# outputs/tables/
+# outputs/figs/
+# outputs/analysis_summary/
 
 # Inventory
 _inventory/

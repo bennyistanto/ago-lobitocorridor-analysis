@@ -1,0 +1,16 @@
+{
+"type": "FeatureCollection",
+"name": "bie_od_zone_centroids",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "ADM2CD_c": "AGO003001", "NAM_2": "Andulo", "NAM_1": "Bié", "lon": 16.458386689986984, "lat": -11.27360756745956, "pop": 382315.28125, "mass": 364027.11873482354, "rwi_z": -0.19134107, "in_priority_mask": false }, "geometry": { "type": "Point", "coordinates": [ 16.458386689986984, -11.27360756745956 ] } },
+{ "type": "Feature", "properties": { "ADM2CD_c": "AGO003002", "NAM_2": "Camacupa", "NAM_1": "Bié", "lon": 17.777278718303211, "lat": -12.450776677556012, "pop": 231339.75, "mass": 220775.46269010007, "rwi_z": -0.1826628, "in_priority_mask": false }, "geometry": { "type": "Point", "coordinates": [ 17.777278718303211, -12.450776677556012 ] } },
+{ "type": "Feature", "properties": { "ADM2CD_c": "AGO003003", "NAM_2": "Catabola", "NAM_1": "Bié", "lon": 17.250693976682363, "lat": -12.146990355541629, "pop": 188848.5, "mass": 179656.81692382693, "rwi_z": -0.19468898, "in_priority_mask": false }, "geometry": { "type": "Point", "coordinates": [ 17.250693976682363, -12.146990355541629 ] } },
+{ "type": "Feature", "properties": { "ADM2CD_c": "AGO003004", "NAM_2": "Chinguar", "NAM_1": "Bié", "lon": 16.56603657812849, "lat": -12.568543921784578, "pop": 188373.671875, "mass": 180473.92499899023, "rwi_z": -0.16774623, "in_priority_mask": false }, "geometry": { "type": "Point", "coordinates": [ 16.56603657812849, -12.568543921784578 ] } },
+{ "type": "Feature", "properties": { "ADM2CD_c": "AGO003005", "NAM_2": "Chitembo", "NAM_1": "Bié", "lon": 17.222491120866032, "lat": -13.475157492303721, "pop": 116329.7109375, "mass": 110541.78428939635, "rwi_z": -0.19901788, "in_priority_mask": false }, "geometry": { "type": "Point", "coordinates": [ 17.222491120866032, -13.475157492303721 ] } },
+{ "type": "Feature", "properties": { "ADM2CD_c": "AGO003006", "NAM_2": "Cuemba", "NAM_1": "Bié", "lon": 18.448625016289068, "lat": -11.811851774506176, "pop": 84447.0, "mass": 80115.086247682571, "rwi_z": -0.20518973, "in_priority_mask": false }, "geometry": { "type": "Point", "coordinates": [ 18.448625016289068, -11.811851774506176 ] } },
+{ "type": "Feature", "properties": { "ADM2CD_c": "AGO003007", "NAM_2": "Cunhinga", "NAM_1": "Bié", "lon": 16.797541199514377, "lat": -11.995414229019708, "pop": 114354.796875, "mass": 108721.12516232114, "rwi_z": -0.19705935, "in_priority_mask": false }, "geometry": { "type": "Point", "coordinates": [ 16.797541199514377, -11.995414229019708 ] } },
+{ "type": "Feature", "properties": { "ADM2CD_c": "AGO003008", "NAM_2": "Kuito", "NAM_1": "Bié", "lon": 17.015701978499777, "lat": -12.538070914866069, "pop": 666531.875, "mass": 643340.82132861018, "rwi_z": -0.13917443, "in_priority_mask": true }, "geometry": { "type": "Point", "coordinates": [ 17.015701978499777, -12.538070914866069 ] } },
+{ "type": "Feature", "properties": { "ADM2CD_c": "AGO003009", "NAM_2": "N'harea", "NAM_1": "Bié", "lon": 17.153876543581397, "lat": -11.307673252012446, "pop": 187398.234375, "mass": 178103.54906025343, "rwi_z": -0.19839421, "in_priority_mask": false }, "geometry": { "type": "Point", "coordinates": [ 17.153876543581397, -11.307673252012446 ] } }
+]
+}
