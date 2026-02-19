@@ -132,11 +132,38 @@ You can use the search box on this page to find functions or parameters across s
 ````
 
 
-````{dropdown} Step 14 — Origin Destination (gravity + agents)
+````{dropdown} Step 14 — Origin Destination (gravity + agents + bottleneck overlay)
 ```{literalinclude} ../../src/step_14_lite_od.py
 :language: python
 :linenos:
 :caption: step_14_lite_od.py
+```
+````
+
+
+````{dropdown} Step 15 — Corridor dashboard (cross-province summary)
+```{literalinclude} ../../src/step_15_corridor_dashboard.py
+:language: python
+:linenos:
+:caption: step_15_corridor_dashboard.py
+```
+````
+
+
+````{dropdown} Step 16 — Intervention simulator (road upgrade impact)
+```{literalinclude} ../../src/step_16_intervention_simulator.py
+:language: python
+:linenos:
+:caption: step_16_intervention_simulator.py
+```
+````
+
+
+````{dropdown} CLI runner — run.py
+```{literalinclude} ../../src/run.py
+:language: python
+:linenos:
+:caption: run.py
 ```
 ````
 

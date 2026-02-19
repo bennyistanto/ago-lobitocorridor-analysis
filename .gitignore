@@ -93,3 +93,15 @@ _build/
 
 # setuptools-scm/
 src/*/_version.py
+
+# Geospatial data (large; manage via DVC or cloud storage)
+data/rasters/
+data/vectors/
+!data/.gitkeep
+outputs/rasters/
+outputs/tables/
+outputs/figs/
+outputs/analysis_summary/
+
+# Inventory
+_inventory/

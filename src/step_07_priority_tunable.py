@@ -69,11 +69,12 @@ except Exception:
     ADMIN2_LUT_CSV = out_t("admin2_lookup")
 
 from utils_geo import (
-    open_template, write_gtiff_masked, 
+    open_template, write_gtiff_masked,
     focal_mean, cell_area_km2_latlon,
     apply_aoi_mask_if_enabled,
     select_top_mask_nan as select_top,
     remove_small_clusters as prune_clusters,
+    ensure_aligned, open_and_align,
 )
 
 log = get_logger(__name__)
@@ -154,16 +155,19 @@ def _find_optional_overlays(T: xr.DataArray) -> dict[str, xr.DataArray]:
 
         try:
             da = xr.open_dataarray(p_tif)
-        except Exception:
-            import rioxarray as rxr
-            da = rxr.open_rasterio(p_tif, masked=True).squeeze()
+        except Exception as e_xr:
+            try:
+                da = rxr.open_rasterio(p_tif, masked=True).squeeze()
+            except Exception as e_rio:
+                log.warning(
+                    "Failed to open overlay %s (xarray: %s; rioxarray: %s). Skipping.",
+                    p_tif.name, e_xr, e_rio,
+                )
+                continue
 
-        # Reproject-match if needed
-        if (da.shape != T.shape) or (da.rio.transform() != T.rio.transform()) or (da.rio.crs != T.rio.crs):
-            da = da.rio.reproject_match(T, resampling=RESAMPLE_DEFAULT_CONT)
-            log.info("Reprojected overlay to match grid: %s", p_tif.name)
-
-        overlays[alias] = da
+        da = ensure_aligned(da, T, resampling=RESAMPLE_DEFAULT_CONT)
+        if da is not None:
+            overlays[alias] = da
     return overlays
 
 
@@ -375,31 +379,12 @@ def main() -> None:
 
     # Load components (Step 00 outputs) — use AOI-prefixed names
     tt_da   = xr.open_dataarray(PARAMS.TARGET_GRID)  # travel time (minutes)
-    pop_da  = _r(out_r("pop_1km"))
-    veg_da  = _r(out_r("veg_1km"))
-    ntl_da  = _r(out_r("ntl_1km"))
-    drt_da  = _r(out_r("drought_1km"))
-    crop_da = _r(out_r("cropland_fraction_1km"))
-    rur_da  = _r(out_r("rural_1km"))
-
-    # Ensure alignment (should already match)
-    for name, da in [("POP",pop_da),("VEG",veg_da),("NTL",ntl_da),("DRT",drt_da),("CROP",crop_da),("RURAL",rur_da)]:
-        if da is not None:
-            
-            if (da.shape != T.shape) or (da.rio.transform() != T.rio.transform()) or (da.rio.crs != T.rio.crs):
-                da = da.rio.reproject_match(
-                    T,
-                    resampling=(RESAMPLE_DEFAULT_CONT if name in ("POP","VEG","NTL","DRT","CROP") else RESAMPLE_DEFAULT_CAT)
-                )
-
-                log.info(f"Reprojected raster to match grid: {name}")
-                # assign back
-                if name == "POP": pop_da = da
-                elif name == "VEG": veg_da = da
-                elif name == "NTL": ntl_da = da
-                elif name == "DRT": drt_da = da
-                elif name == "CROP": crop_da = da
-                elif name == "RURAL": rur_da = da
+    pop_da  = open_and_align(out_r("pop_1km"), T, resampling=RESAMPLE_DEFAULT_CONT)
+    veg_da  = open_and_align(out_r("veg_1km"), T, resampling=RESAMPLE_DEFAULT_CONT)
+    ntl_da  = open_and_align(out_r("ntl_1km"), T, resampling=RESAMPLE_DEFAULT_CONT)
+    drt_da  = open_and_align(out_r("drought_1km"), T, resampling=RESAMPLE_DEFAULT_CONT)
+    crop_da = open_and_align(out_r("cropland_fraction_1km"), T, resampling=RESAMPLE_DEFAULT_CONT)
+    rur_da  = open_and_align(out_r("rural_1km"), T, resampling=RESAMPLE_DEFAULT_CAT)
 
     # Optional overlays (Step 06 + Step 00 RWI)
     overlays = _find_optional_overlays(T)
@@ -442,10 +427,8 @@ def main() -> None:
     if WRITE_JSON_SIDECARS:
         write_geo_sidecar(Path(PRIORITY_TOP10_TIF), like=T, extra={"kind": "priority_top_mask"})
 
-    # --- Optional JSON sidecar for reproducibility (weights, masks, selection) ---
-    _write_sidecar = bool(WRITE_JSON_SIDECARS)
-    if _write_sidecar:
-        from pathlib import Path as _P
+    # --- Optional JSON sidecar for reproducibility ---
+    if WRITE_JSON_SIDECARS:
         import json as _json
 
         meta = {
@@ -469,23 +452,45 @@ def main() -> None:
                 "min_cluster_cells": int(PARAMS.MIN_CLUSTER_CELLS or 0),
             },
             "outputs": {
-                "priority_score_tif": _P(PRIORITY_TIF).name,
-                "priority_top_mask_tif": _P(PRIORITY_TOP10_TIF).name,
+                "priority_score_tif": Path(PRIORITY_TIF).name,
+                "priority_top_mask_tif": Path(PRIORITY_TOP10_TIF).name,
             },
+            "overlays_present": sorted([k for k in ("POV","FOOD","MTT","RWI") if k in comps]),
         }
-        meta["overlays_present"] = sorted([k for k in ("POV","FOOD","MTT","RWI") if k in comps])
-
-        _meta_path = _P(PRIORITY_TIF).with_suffix(".meta.json")
+        _meta_path = Path(PRIORITY_TIF).with_suffix(".meta.json")
         _meta_path.write_text(_json.dumps(meta, indent=2))
         log.info(f"Wrote sidecar meta → {_meta_path.name}")
-    
-    # -------------------------------------------------------------------------
-    # Admin-2 priority ranking table (required columns)
-    #   Columns: ADM2CD_c, NAM_1, NAM_2, score, rank, selected
-    #   Extras:  share_selected (0..1) for transparency/debug
-    # -------------------------------------------------------------------------
+
+    # Admin-2 priority ranking table
+    _write_admin2_rank_table(T)
+
+    log.info("Step 07 complete.")
+
+
+# -------------------------------------------------------------------------
+# Admin-2 priority ranking (extracted from main for readability)
+# -------------------------------------------------------------------------
+
+def _to_2d_float(arr) -> np.ndarray:
+    """Squeeze a DataArray to a 2-D float64 numpy array, handling masked arrays."""
+    a = np.asarray(arr.values)
+    if a.ndim == 3 and a.shape[0] == 1:
+        a = a[0]
+    if np.ma.isMaskedArray(a):
+        a = a.filled(np.nan)
+    if a.ndim != 2:
+        raise RuntimeError(f"Expected 2D raster, got shape={a.shape}")
+    return a.astype("float64")
+
+
+def _write_admin2_rank_table(T: xr.DataArray) -> None:
+    """
+    Build and write the Admin-2 priority ranking table.
+
+    Reads the admin-2 id grid, priority score/mask, and lookup table produced
+    by earlier steps, then aggregates per-zone statistics.
+    """
     try:
-        # Canonical targets
         p_id = Path(ADMIN2_ID_TIF)
         p_lut = Path(ADMIN2_LUT_CSV)
 
@@ -500,133 +505,92 @@ def main() -> None:
             if cands:
                 p_lut = cands[0]
 
-        if p_id.exists() and p_lut.exists():
-            # --- read rasters and force 2D numpy arrays (no band dim, no masked arrays)
-            idgrid = rxr.open_rasterio(p_id, masked=True).squeeze()
-            if hasattr(idgrid, "rio"):
-                if (idgrid.shape != T.shape) or (idgrid.rio.transform() != T.rio.transform()) or (idgrid.rio.crs != T.rio.crs):
-                    idgrid = idgrid.rio.reproject_match(T, resampling=Resampling.nearest)
-
-            # Read priority and mask, then squeeze to 2D and convert masked→np.nan safely
-            v_da = xr.open_dataarray(PRIORITY_TIF).squeeze()
-            m_da = xr.open_dataarray(PRIORITY_TOP10_TIF).squeeze()
-
-            def _to_2d_float(arr):
-                a = np.asarray(arr.values)
-                if a.ndim == 3 and a.shape[0] == 1:
-                    a = a[0]
-                if np.ma.isMaskedArray(a):
-                    a = a.filled(np.nan)
-                if a.ndim != 2:
-                    raise RuntimeError(f"Expected 2D raster, got shape={a.shape}")
-                return a.astype("float64")
-
-            v   = _to_2d_float(v_da)   # priority score 0..1 with NaN outside AOI
-            m   = _to_2d_float(m_da)   # selection mask (1=selected, NaN/0 otherwise)
-
-            ids = np.asarray(idgrid.values)
-            if ids.ndim == 3 and ids.shape[0] == 1:
-                ids = ids[0]
-            if np.ma.isMaskedArray(ids):
-                ids = ids.filled(0)
-            if ids.ndim != 2:
-                raise RuntimeError(f"Expected 2D admin id grid, got shape={ids.shape}")
-            ids = np.where(np.isfinite(ids), ids, 0).astype("int32")
-
-            # shapes must match
-            if v.shape != ids.shape or m.shape != ids.shape:
-                raise RuntimeError(f"Shape mismatch: score{v.shape}, mask{m.shape}, ids{ids.shape}")
-
-            # Lookup table
-            lut = pd.read_csv(p_lut)
-            for col in ["lab", "ADM2CD_c", "NAM_1", "NAM_2"]:
-                if col not in lut.columns:
-                    lut[col] = np.nan
-            lut = lut[["lab", "ADM2CD_c", "NAM_1", "NAM_2"]].copy()
-            lut["lab"] = lut["lab"].astype("Int64")
-
-            # Filter valid cells (inside AOI ∧ has admin id)
-            valid = np.isfinite(v) & (ids > 0)
-            if not valid.any():
-                log.warning("Admin-2 ranking: no valid cells; skipping table.")
-            else:
-                vv   = v[valid]
-                ii   = ids[valid]
-                sel  = np.nan_to_num(m[valid], nan=0.0) > 0
-
-                # Per-cell area (km²), matched to template
-                ak_da = cell_area_km2_latlon(T)
-                ak    = np.asarray(ak_da.values)
-                if ak.ndim == 3 and ak.shape[0] == 1:
-                    ak = ak[0]
-                akv = ak[valid]
-
-                max_id = int(ii.max()) if ii.size else 0
-                if max_id == 0:
-                    log.warning("Admin-2 ranking: all admin ids are zero; skipping table.")
-                else:
-                    # Aggregations by admin id
-                    sums_score   = np.bincount(ii, weights=vv, minlength=max_id + 1)
-                    cnts_total   = np.bincount(ii, minlength=max_id + 1)
-                    cnts_sel     = np.bincount(ii, weights=sel.astype("float64"), minlength=max_id + 1)
-
-                    km2_total    = np.bincount(ii, weights=akv, minlength=max_id + 1)
-                    km2_selected = np.bincount(ii, weights=akv * sel.astype("float64"), minlength=max_id + 1)
-
-                    # Means & shares
-                    means = np.divide(sums_score, cnts_total,
-                                      out=np.full_like(sums_score, np.nan, dtype="float64"),
-                                      where=cnts_total > 0)
-                    share_selected = np.divide(cnts_sel, cnts_total,
-                                               out=np.zeros_like(cnts_sel, dtype="float64"),
-                                               where=cnts_total > 0)
-
-                    # Build frame
-                    df = pd.DataFrame({
-                        "lab": np.arange(0, max_id + 1, dtype=int),
-                        "score": means,
-                        "selected_cells": cnts_sel.astype(int),
-                        "total_cells": cnts_total.astype(int),
-                        "selected_km2": km2_selected.astype("float64"),
-                        "total_km2": km2_total.astype("float64"),
-                        "share_selected": share_selected.astype("float64"),
-                    })
-                    df = df[df["lab"] > 0]
-
-                    out_df = df.merge(lut, on="lab", how="left")
-
-                    # Selection boolean; "top10_*" aliases for compatibility
-                    out_df["selected"]   = out_df["selected_cells"] > 0
-                    out_df["top10_cells"] = out_df["selected_cells"].astype(int)
-                    out_df["top10_km2"]   = out_df["selected_km2"].astype("float64")
-
-                    # Rank by score desc
-                    out_df = out_df.sort_values("score", ascending=False, na_position="last").reset_index(drop=True)
-                    out_df["rank"] = (np.arange(len(out_df)) + 1).astype(int)
-
-                    # Enforce stable column order (core first, extras after)
-                    CORE = ["ADM2CD_c", "NAM_1", "NAM_2", "score", "rank", "selected", "share_selected"]
-                    EXTRAS = ["selected_cells", "selected_km2", "total_cells", "total_km2", "top10_cells", "top10_km2"]
-
-                    # Lock schema (13 columns), defaults + order + dtypes
-                    out_df = _ensure_rank_columns(out_df)
-
-                    # Write canonical Admin-2 priority table
-                    out_csv_a = _admin2_rank_path().with_suffix(".csv")  # {AOI}_priority_admin2_rank.csv
-                    out_df.to_csv(out_csv_a, index=False)
-                    log.info(
-                        "Wrote Admin-2 priority table → %s (rows=%d, cols=%d)",
-                        out_csv_a.name, len(out_df), out_df.shape[1]
-                    )
-
-        else:
+        if not (p_id.exists() and p_lut.exists()):
             log.info("Admin-2 grid/lookup not found; skip Admin-2 ranking table.")
+            return
+
+        idgrid = rxr.open_rasterio(p_id, masked=True).squeeze()
+        idgrid = ensure_aligned(idgrid, T, resampling=Resampling.nearest)
+
+        v = _to_2d_float(xr.open_dataarray(PRIORITY_TIF).squeeze())
+        m = _to_2d_float(xr.open_dataarray(PRIORITY_TOP10_TIF).squeeze())
+
+        ids = np.asarray(idgrid.values)
+        if ids.ndim == 3 and ids.shape[0] == 1:
+            ids = ids[0]
+        if np.ma.isMaskedArray(ids):
+            ids = ids.filled(0)
+        ids = np.where(np.isfinite(ids), ids, 0).astype("int32")
+
+        if v.shape != ids.shape or m.shape != ids.shape:
+            raise RuntimeError(f"Shape mismatch: score{v.shape}, mask{m.shape}, ids{ids.shape}")
+
+        lut = pd.read_csv(p_lut)
+        for col in ["lab", "ADM2CD_c", "NAM_1", "NAM_2"]:
+            if col not in lut.columns:
+                lut[col] = np.nan
+        lut = lut[["lab", "ADM2CD_c", "NAM_1", "NAM_2"]].copy()
+        lut["lab"] = lut["lab"].astype("Int64")
+
+        valid = np.isfinite(v) & (ids > 0)
+        if not valid.any():
+            log.warning("Admin-2 ranking: no valid cells; skipping table.")
+            return
+
+        vv  = v[valid]
+        ii  = ids[valid]
+        sel = np.nan_to_num(m[valid], nan=0.0) > 0
+
+        ak = np.asarray(cell_area_km2_latlon(T).values)
+        if ak.ndim == 3 and ak.shape[0] == 1:
+            ak = ak[0]
+        akv = ak[valid]
+
+        max_id = int(ii.max()) if ii.size else 0
+        if max_id == 0:
+            log.warning("Admin-2 ranking: all admin ids are zero; skipping table.")
+            return
+
+        sums_score   = np.bincount(ii, weights=vv, minlength=max_id + 1)
+        cnts_total   = np.bincount(ii, minlength=max_id + 1)
+        cnts_sel     = np.bincount(ii, weights=sel.astype("float64"), minlength=max_id + 1)
+        km2_total    = np.bincount(ii, weights=akv, minlength=max_id + 1)
+        km2_selected = np.bincount(ii, weights=akv * sel.astype("float64"), minlength=max_id + 1)
+
+        means = np.divide(sums_score, cnts_total,
+                          out=np.full_like(sums_score, np.nan, dtype="float64"),
+                          where=cnts_total > 0)
+        share_sel = np.divide(cnts_sel, cnts_total,
+                              out=np.zeros_like(cnts_sel, dtype="float64"),
+                              where=cnts_total > 0)
+
+        df = pd.DataFrame({
+            "lab": np.arange(0, max_id + 1, dtype=int),
+            "score": means,
+            "selected_cells": cnts_sel.astype(int),
+            "total_cells": cnts_total.astype(int),
+            "selected_km2": km2_selected.astype("float64"),
+            "total_km2": km2_total.astype("float64"),
+            "share_selected": share_sel.astype("float64"),
+        })
+        df = df[df["lab"] > 0]
+
+        out_df = df.merge(lut, on="lab", how="left")
+        out_df["selected"]    = out_df["selected_cells"] > 0
+        out_df["top10_cells"] = out_df["selected_cells"].astype(int)
+        out_df["top10_km2"]   = out_df["selected_km2"].astype("float64")
+
+        out_df = out_df.sort_values("score", ascending=False, na_position="last").reset_index(drop=True)
+        out_df["rank"] = (np.arange(len(out_df)) + 1).astype(int)
+        out_df = _ensure_rank_columns(out_df)
+
+        out_csv = _admin2_rank_path().with_suffix(".csv")
+        out_df.to_csv(out_csv, index=False)
+        log.info("Wrote Admin-2 priority table → %s (rows=%d, cols=%d)",
+                 out_csv.name, len(out_df), out_df.shape[1])
 
     except Exception as e:
         log.warning(f"Admin-2 priority table skipped due to error: {e}")
-
-
-    log.info("Step 07 complete.")
 
 
 if __name__ == "__main__":

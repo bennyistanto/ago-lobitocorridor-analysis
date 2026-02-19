@@ -115,20 +115,31 @@ composite targeting table (Step 09):
 - the composite score can optionally tilt via `W_POV`, `W_FOOD`, `W_RWI`,
 - we can test how priority rankings change if we *remove* those weights.
 
+Beyond correlations and outlier flags, Step 09 now computes a **benefit
+incidence curve** and **concentration index (CI)** that measures whether
+investment benefits flow disproportionately to poorer or richer areas:
+
+- **CI > 0** → pro-poor (benefits tilt toward higher-poverty municipalities),
+- **CI < 0** → pro-rich (benefits tilt toward lower-poverty municipalities),
+- **CI ≈ 0** → roughly neutral.
+
 **What to look at**
 
 - **Chapter 7 – Equity lens**:
   - scatter plots of **priority score vs. rural poverty**,
   - scatter plots of **priority score vs. food insecurity**,
-  - lists of **“high poverty, low priority”** municipalities (possible blind spots),
-  - lists of **“low poverty, high priority”** municipalities (strategic trade-offs).
+  - **benefit incidence curve** and **concentration index**,
+  - lists of **"high poverty, low priority"** municipalities (possible blind spots),
+  - lists of **"low poverty, high priority"** municipalities (strategic trade-offs).
 
 **Suggested page elements**
 
 - *Chart*: 2×2 grid of scatter plots
   (priority vs. rural poverty; priority vs. food insecurity),
   with notable outliers labelled by municipality name.
-- *Table 3*: list of the **top 5 “missed” poor municipalities** where rural
+- *Chart*: benefit incidence curve (cumulative benefit share vs. cumulative
+  population share, ranked poorest to richest).
+- *Table 3*: list of the **top 5 "missed" poor municipalities** where rural
   poverty and food insecurity are high, but current priority is relatively low.
 
 ---
@@ -169,25 +180,38 @@ This allows us to:
 
 ## 5. Logistics: do upgrades improve market access along the rail & road spine?
 
-**Question from the intro:**  
+**Question from the intro:**
 > *Do planned upgrades improve market and finance access while supporting the Caála Logistics Platform and other key nodes?*
 
-Two components speak to logistics:
+Four components speak to logistics:
 
-1. **Catchments** (Step 12):  
-   travel-time catchments from project sites (e.g. 30/60/120 minutes) with
-   population and cropland coverage  
-   → `catchments_kpis.csv`.
+1. **Catchments** (Step 12):
+   travel-time catchments from project sites (30/60/120 min) with
+   population, cropland, and **marginal beneficiary counts** (net new people
+   who gain access they didn't have before)
+   → `catchments_kpis.csv`, `marginal_catchment.csv`.
 
-2. **OD flows** (Step 14 – OD-Lite):  
-   a simple gravity model between municipalities, using population and
-   distance, plus optional RWI tilting  
-   → `od_gravity.csv`, `od_zone_attrs.csv`, `od_agents.csv`.
+2. **OD flows** (Step 14 – OD-Lite):
+   a gravity model between municipalities, plus a **bottleneck overlay** that
+   ranks flood-risk road cells by the OD flow they carry
+   → `od_gravity.csv`, `od_bottleneck_cells.csv`.
+
+3. **Bottleneck risk ranking** (Step 14 extension):
+   which road cells carry the most OD flow *and* face flood risk? Fixing
+   those cells protects the most corridor movement
+   → Chapter 8b.
+
+4. **Intervention impact simulator** (Step 16):
+   hypothetically upgrade flood-risk road segments and recompute travel
+   times. See how many people gain faster access and by how much
+   → `sim_impact_summary.csv`, Chapter 8c.
 
 Together, they tell us:
 
 - which **sites serve the most people within a given time band**,
-- which sites **“unlock” access to Caála and other key logistics nodes**, and
+- how many **net new beneficiaries** each site unlocks,
+- which **road cells are critical bottlenecks** for corridor flows,
+- what happens if we **upgrade vulnerable road segments**, and
 - which Admin2s sit on **high-throughput flows** (and may need resilient
   infrastructure).
 
@@ -195,10 +219,15 @@ Together, they tell us:
 
 - **Chapter 5 – Catchments**:
   - top sites by population within 60 minutes,
-  - trade-offs between reaching more people vs. more cropland.
+  - marginal catchment: net new beneficiaries per site.
 - **Chapter 8 – Movement**:
   - top OD pairs by modelled flow,
   - municipalities with the highest combined in- and out-flows.
+- **Chapter 8b – Bottlenecks**:
+  - flood-risk road cells ranked by OD flow load.
+- **Chapter 8c – Impact simulator**:
+  - population gaining ≥10/30/60 minutes from a road upgrade,
+  - people newly within 60-minute service threshold.
 
 **Suggested page elements**
 
@@ -206,6 +235,9 @@ Together, they tell us:
   candidate sites along the corridor (including Caála).
 - *Chart*: bar chart of **population served within 60 minutes** for the top
   5–10 sites.
+- *Map 5*: bottleneck risk cells colored by flow load, overlaid on corridor roads.
+- *Table*: impact summary showing population gaining ≥N minutes under the
+  default road upgrade scenario.
 
 ---
 
@@ -218,10 +250,11 @@ Together, they tell us:
   - full municipal targeting (Ch. 2 & 7),
   - catchments (Ch. 5),
   - synergies (Ch. 6),
-  - movement (Ch. 8).
+  - movement & bottlenecks (Ch. 8, 8b),
+  - impact simulation (Ch. 8c).
 
 Under the hood, everything is fully reproducible via the
 [Run anywhere](../chapters/09-cheatsheet.md) and
 [How it works](../chapters/12-how-it-works.md) chapters. This page is the
 storytelling layer sitting on top of the 1-km grid, cluster KPIs, and
-municipal targeting tables generated by Steps 00–14.
+municipal targeting tables generated by Steps 00–16.

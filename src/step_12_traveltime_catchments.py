@@ -384,7 +384,84 @@ def main() -> None:
         log.info(f"Wrote catchment KPIs → {out_csv.name} | rows={len(df)}")
 
 
+    # --- Marginal catchment (net new beneficiaries) analysis ----------------
+    _marginal_catchment(T, friction, sites, pop, thresholds, max_cost_min)
+
     log.info("Step 12 complete.")
+
+
+def _marginal_catchment(
+    T: xr.DataArray,
+    friction: xr.DataArray,
+    sites: gpd.GeoDataFrame,
+    pop: xr.DataArray | None,
+    thresholds: tuple[int, ...],
+    max_cost_min: float,
+) -> None:
+    """
+    Compute *net new beneficiaries* per project site.
+
+    Logic
+    -----
+    The travel-time raster T (minutes to nearest market/finance) represents the
+    status-quo accessibility surface. People with T ≤ 60 min already have
+    reasonable access.
+
+    For each project site, the road-aware cost-distance gives a new accessibility
+    surface. The *marginal* catchment is the population reachable within threshold
+    minutes from the site **but** currently beyond that threshold from existing
+    services (i.e., T > threshold).
+
+    This answers: "How many NEW beneficiaries does this investment unlock?"
+
+    Outputs
+    -------
+    - outputs/tables/{AOI}_marginal_catchment.csv
+      (site_index, lon, lat, thresh_min, pop_marginal, pop_total_catch, pct_marginal)
+    """
+    if pop is None:
+        log.warning("Marginal catchment skipped (no population raster).")
+        return
+
+    rows = []
+    for idx, rec in sites.reset_index(drop=True).iterrows():
+        geom = rec.geometry
+        pt = geom.centroid if geom.geom_type.lower() != "point" else geom
+        lon, lat = float(pt.x), float(pt.y)
+
+        # Cost-distance from this site
+        acc = _accumulated_minutes_from_point(friction, lon, lat, max_cost_min=max_cost_min)
+
+        for thr in thresholds:
+            # Cells reachable from this site within threshold
+            site_reach = (acc.values <= float(thr))
+            # Cells already served by existing network within same threshold
+            already_served = (T.values <= float(thr))
+
+            # Marginal = reachable from site AND not already served
+            marginal = site_reach & ~already_served & np.isfinite(pop.values)
+            total_catch = site_reach & np.isfinite(pop.values)
+
+            pop_marginal = float(np.nansum(pop.values[marginal])) if np.any(marginal) else 0.0
+            pop_total = float(np.nansum(pop.values[total_catch])) if np.any(total_catch) else 0.0
+
+            rows.append({
+                "site_index": idx + 1,
+                "lon": lon,
+                "lat": lat,
+                "thresh_min": thr,
+                "pop_marginal": pop_marginal,
+                "pop_total_catch": pop_total,
+                "pct_marginal": (pop_marginal / pop_total * 100.0) if pop_total > 0 else 0.0,
+            })
+
+        log.info("Marginal catchment for site %d at %.5f, %.5f", idx + 1, lon, lat)
+
+    if rows:
+        df = pd.DataFrame(rows)
+        out_csv = PATHS.OUT_T / f"{AOI}_marginal_catchment.csv"
+        df.to_csv(out_csv, index=False)
+        log.info("Wrote marginal catchment -> %s (%d rows)", out_csv.name, len(df))
 
 
 if __name__ == "__main__":

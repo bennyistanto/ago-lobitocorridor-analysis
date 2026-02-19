@@ -76,7 +76,7 @@ from config import (
     log_denominators,
     RESAMPLE_DEFAULT_CONT, RESAMPLE_DEFAULT_CAT,
 )
-from utils_geo import open_template, cell_area_km2_latlon
+from utils_geo import open_template, cell_area_km2_latlon, ensure_aligned, open_and_align
 
 log = get_logger(__name__)
 
@@ -188,30 +188,14 @@ def main() -> None:
     resx, resy = abs(tf.a), abs(tf.e)
     log.info(f"Template grid | CRS={T.rio.crs} | size={T.rio.height}x{T.rio.width} | cell={resx:.4f}x{resy:.4f}")
 
-    # Rasters (some optional)
-    import rioxarray as rxr
-    pop   = _open_optional(_P.OUT_R / f"{AOI}_pop_1km.tif")
-    cropf = _open_optional(_P.OUT_R / f"{AOI}_cropland_fraction_1km.tif")
-    grid  = _open_optional(_P.OUT_R / f"{AOI}_elec_grid_1km.tif")
-    rural = _open_optional(_P.OUT_R / f"{AOI}_rural_1km.tif")
-    prio  = _open_optional(_P.OUT_R / f"{AOI}_priority_top10_mask.tif")
-    risk  = _open_optional(_P.OUT_R / f"{AOI}_roads_flood_risk_cells_1km.tif")  # may be None
-    pov   = _open_optional(_P.OUT_R / f"{AOI}_muni_poverty_poverty_rural_1km.tif")  # may be None
-
-    # Ensure all open rasters align to T if they exist
-    rasters = {"pop": pop, "cropf": cropf, "grid": grid, "rural": rural, "prio": prio, "risk": risk, "pov": pov}
-    for k, da in rasters.items():
-        if da is None:
-            continue
-        if (da.shape != T.shape) or (da.rio.transform() != T.rio.transform()) or (da.rio.crs != T.rio.crs):
-            # nearest for masks, bilinear for continuous
-            # centralized resampling policy from config
-            rs = RESAMPLE_DEFAULT_CONT if k in ("pop", "cropf", "pov") else RESAMPLE_DEFAULT_CAT
-            rasters[k] = da.rio.reproject_match(T, resampling=rs)
-
-            log.info(f"Reprojected {k} to match grid")
-
-    pop, cropf, grid, rural, prio, risk, pov = [rasters[k] for k in ["pop","cropf","grid","rural","prio","risk","pov"]]
+    # Rasters (some optional) — open and align to template in one call
+    pop   = open_and_align(_P.OUT_R / f"{AOI}_pop_1km.tif", T, RESAMPLE_DEFAULT_CONT)
+    cropf = open_and_align(_P.OUT_R / f"{AOI}_cropland_fraction_1km.tif", T, RESAMPLE_DEFAULT_CONT)
+    grid  = open_and_align(_P.OUT_R / f"{AOI}_elec_grid_1km.tif", T, RESAMPLE_DEFAULT_CAT)
+    rural = open_and_align(_P.OUT_R / f"{AOI}_rural_1km.tif", T, RESAMPLE_DEFAULT_CAT)
+    prio  = open_and_align(_P.OUT_R / f"{AOI}_priority_top10_mask.tif", T, RESAMPLE_DEFAULT_CAT)
+    risk  = open_and_align(_P.OUT_R / f"{AOI}_roads_flood_risk_cells_1km.tif", T, RESAMPLE_DEFAULT_CAT)
+    pov   = open_and_align(_P.OUT_R / f"{AOI}_muni_poverty_poverty_rural_1km.tif", T, RESAMPLE_DEFAULT_CONT)
 
     # --- AOI-wide denominators snapshot (for consistent logs across steps) ---
     try:

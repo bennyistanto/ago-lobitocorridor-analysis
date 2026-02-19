@@ -40,10 +40,13 @@ All data gets aligned to the 1-km analysis grid, with vector layers rasterized o
 The analysis provides comparable metrics for any corridor province and its municipalities. Key features include:
 
 - A customizable priority surface that weighs population, cropland, accessibility, and risk factors
-- Pixel-level analysis converted into actionable project clusters  
-- Service catchment areas calculated using road networks and travel times
+- Pixel-level analysis converted into actionable project clusters with cropland-flood exposure and benefit density metrics
+- Service catchment areas with marginal beneficiary analysis (net new people reached)
 - Overlay analysis with existing government, World Bank, and other investments
-- Origin-destination flow modeling between municipalities
+- Origin-destination flow modeling linked to flood-risk road bottlenecks
+- Benefit incidence curves and equity concentration index
+- Intervention impact simulator for road upgrade scenarios
+- Corridor-wide dashboard comparing all five provinces
 
 The system uses a consistent 1-km grid with rioxarray/xarray tools and careful coordinate system handling for reproducible results.
 
@@ -52,18 +55,19 @@ The system uses a consistent 1-km grid with rioxarray/xarray tools and careful c
 **Repository structure:**
 
 ```
-src/          # Processing steps 00-14 plus geo utilities
-notebooks/    # Pipeline runner and analysis chapters  
+src/          # Processing steps 00-16 plus geo utilities
+notebooks/    # Pipeline runner and analysis chapters
 data/         # Input vectors and rasters by area
 outputs/      # Results: rasters, tables, figures
 docs/         # Jupyter book documentation
+tests/        # Smoke tests
 ```
 
 **Setup:**
 
 1. Set `PROJECT_ROOT` and `AOI` environment variables
 2. Edit paths and parameters in `src/config.py` 
-3. Run processing scripts in sequence (00 through 14)
+3. Run processing scripts in sequence (00 through 16)
 4. Save the provenance JSON from Chapter 14
 5. Browse results in the Jupyter Book documentation
 

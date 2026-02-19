@@ -1,0 +1,33 @@
+{
+"type": "FeatureCollection",
+"name": "benguela_project_proximity_30km",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 94.699997, "within_radius": false, "proximity": "beyond_30km" }, "geometry": { "type": "Point", "coordinates": [ 13.502981, -12.430235 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 117.77, "within_radius": false, "proximity": "beyond_30km" }, "geometry": { "type": "Point", "coordinates": [ 13.92658333, -11.99188889 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 118.68, "within_radius": false, "proximity": "beyond_30km" }, "geometry": { "type": "Point", "coordinates": [ 13.92658333, -11.98361111 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 119.15, "within_radius": false, "proximity": "beyond_30km" }, "geometry": { "type": "Point", "coordinates": [ 13.93563889, -11.97777778 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 118.71, "within_radius": false, "proximity": "beyond_30km" }, "geometry": { "type": "Point", "coordinates": [ 13.96986111, -11.97677778 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 119.26, "within_radius": false, "proximity": "beyond_30km" }, "geometry": { "type": "Point", "coordinates": [ 13.96986111, -11.97169444 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 122.03, "within_radius": false, "proximity": "beyond_30km" }, "geometry": { "type": "Point", "coordinates": [ 13.97575, -11.94577778 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 111.52, "within_radius": false, "proximity": "beyond_30km" }, "geometry": { "type": "Point", "coordinates": [ 13.95425, -12.04463889 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 111.31, "within_radius": false, "proximity": "beyond_30km" }, "geometry": { "type": "Point", "coordinates": [ 13.95227778, -12.04691667 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 106.95, "within_radius": false, "proximity": "beyond_30km" }, "geometry": { "type": "Point", "coordinates": [ 13.94530556, -12.08802778 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 115.32, "within_radius": false, "proximity": "beyond_30km" }, "geometry": { "type": "Point", "coordinates": [ 13.91877778, -12.01580556 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 115.45, "within_radius": false, "proximity": "beyond_30km" }, "geometry": { "type": "Point", "coordinates": [ 13.92405556, -12.01369444 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 105.47, "within_radius": false, "proximity": "beyond_30km" }, "geometry": { "type": "Point", "coordinates": [ 13.92233333, -12.10586111 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 138.85001, "within_radius": false, "proximity": "beyond_30km" }, "geometry": { "type": "Point", "coordinates": [ 13.85897222, -11.81066667 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 100.52, "within_radius": false, "proximity": "beyond_30km" }, "geometry": { "type": "Point", "coordinates": [ 13.91002778, -12.15422222 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 129.81, "within_radius": false, "proximity": "beyond_30km" }, "geometry": { "type": "Point", "coordinates": [ 14.06216667, -11.86805556 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 102.56, "within_radius": false, "proximity": "beyond_30km" }, "geometry": { "type": "Point", "coordinates": [ 14.02297222, -12.11763889 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 103.72, "within_radius": false, "proximity": "beyond_30km" }, "geometry": { "type": "Point", "coordinates": [ 14.63861111, -12.08 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 86.540001, "within_radius": false, "proximity": "beyond_30km" }, "geometry": { "type": "Point", "coordinates": [ 13.8477, -12.30325 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 26.77, "within_radius": true, "proximity": "within_30km" }, "geometry": { "type": "Point", "coordinates": [ 14.8, -12.9167 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 76.080002, "within_radius": false, "proximity": "beyond_30km" }, "geometry": { "type": "Point", "coordinates": [ 14.7682393, -12.3545192 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 12.3, "within_radius": true, "proximity": "within_30km" }, "geometry": { "type": "Point", "coordinates": [ 14.00276944, -13.02198333 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": null, "within_radius": false, "proximity": "beyond_30km" }, "geometry": { "type": "Point", "coordinates": [ -1.7976931348623157e+308, -1.7976931348623157e+308 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 83.669998, "within_radius": false, "proximity": "beyond_30km" }, "geometry": { "type": "Point", "coordinates": [ 13.48618333, -12.60254167 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 6.56, "within_radius": true, "proximity": "within_30km" }, "geometry": { "type": "Point", "coordinates": [ 14.25963, -13.04825 ] } },
+{ "type": "Feature", "properties": { "source": "wb", "dist_to_cluster_km": 6.5500002, "within_radius": true, "proximity": "within_30km" }, "geometry": { "type": "Point", "coordinates": [ 14.25974, -13.04839 ] } }
+]
+}

@@ -65,8 +65,9 @@ from config import (
 )
 
 from utils_geo import (
-    open_template, write_gtiff_masked, 
-    focal_mean, cell_area_km2_latlon
+    open_template, write_gtiff_masked,
+    focal_mean, cell_area_km2_latlon,
+    ensure_aligned, open_and_align,
 )
 
 log = get_logger(__name__)
@@ -162,12 +163,9 @@ def _find_optional_muni_rasters(T: xr.DataArray) -> Dict[str, xr.DataArray]:
     }
     out = {}
     for k, p in cand.items():
-        da = _r(p)
-        if da is None:
-            continue
-        if (da.shape != T.shape) or (da.rio.transform() != T.rio.transform()) or (da.rio.crs != T.rio.crs):
-            da = da.rio.reproject_match(T, resampling=RESAMPLE_DEFAULT_CONT)
-        out[k] = da
+        da = open_and_align(p, T, resampling=RESAMPLE_DEFAULT_CONT)
+        if da is not None:
+            out[k] = da
     return out
 
 def _safe_minmax_scale(da: xr.DataArray, lo: float, hi: float, invert: bool = False) -> xr.DataArray:
@@ -386,26 +384,15 @@ def _load_all_inputs(T) -> Dict[str, xr.DataArray]:
     """
     Load & align all rasters we may need.
     """
-    def _open_align(path: Path, method: str) -> xr.DataArray | None:
-        if not path.exists():
-            return None
-        da = rxr.open_rasterio(path, masked=True).squeeze()
-        if (da.shape != T.shape) or (da.rio.transform() != T.rio.transform()) or (da.rio.crs != T.rio.crs):
-            resmpl = RESAMPLE_DEFAULT_CAT if method == "nearest" else RESAMPLE_DEFAULT_CONT
-            da = da.rio.reproject_match(T, resampling=resmpl)
-        return da
-    
     out = {
-        "pop":  _open_align(PATHS.OUT_R / f"{AOI}_pop_1km.tif", "bilinear"),
-        "veg":  _open_align(PATHS.OUT_R / f"{AOI}_veg_1km.tif", "bilinear"),
-        "ntl":  _open_align(PATHS.OUT_R / f"{AOI}_ntl_1km.tif", "bilinear"),
-        "drt":  _open_align(PATHS.OUT_R / f"{AOI}_drought_1km.tif", "bilinear"),
-        "crop": _open_align(PATHS.OUT_R / f"{AOI}_cropland_fraction_1km.tif", "bilinear"),
-        "rural":_open_align(PATHS.OUT_R / f"{AOI}_rural_1km.tif", "nearest"),
+        "pop":   open_and_align(PATHS.OUT_R / f"{AOI}_pop_1km.tif", T, RESAMPLE_DEFAULT_CONT),
+        "veg":   open_and_align(PATHS.OUT_R / f"{AOI}_veg_1km.tif", T, RESAMPLE_DEFAULT_CONT),
+        "ntl":   open_and_align(PATHS.OUT_R / f"{AOI}_ntl_1km.tif", T, RESAMPLE_DEFAULT_CONT),
+        "drt":   open_and_align(PATHS.OUT_R / f"{AOI}_drought_1km.tif", T, RESAMPLE_DEFAULT_CONT),
+        "crop":  open_and_align(PATHS.OUT_R / f"{AOI}_cropland_fraction_1km.tif", T, RESAMPLE_DEFAULT_CONT),
+        "rural": open_and_align(PATHS.OUT_R / f"{AOI}_rural_1km.tif", T, RESAMPLE_DEFAULT_CAT),
     }
-    # optional muni overlays
     out["muni"] = _find_optional_muni_rasters(T)
-    # sanity
     if out["pop"] is None:
         raise RuntimeError("Missing required raster: pop_1km")
     return out
@@ -501,10 +488,7 @@ def main() -> None:
     # Load (or compute) baseline mask
     baseline_path = Path(PRIORITY_TOP10_TIF)
     if baseline_path.exists():
-        base_mask = rxr.open_rasterio(baseline_path, masked=True).squeeze()
-        if (base_mask.shape != T.shape) or (base_mask.rio.transform()!=T.rio.transform()) or (base_mask.rio.crs!=T.rio.crs):
-            base_mask = base_mask.rio.reproject_match(T, resampling=RESAMPLE_DEFAULT_CAT)
-        
+        base_mask = open_and_align(baseline_path, T, RESAMPLE_DEFAULT_CAT)
         log.info(f"Using on-disk baseline: {baseline_path.name}")
     else:
         base_mask = None

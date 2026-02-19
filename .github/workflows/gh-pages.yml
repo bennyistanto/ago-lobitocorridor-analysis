@@ -4,31 +4,57 @@ on:
     branches:
       - main
 
+# Allow only one concurrent deployment; skip queued runs between the
+# in-progress one and latest, so every push gets a clean build.
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+# Sets permissions for the GITHUB_TOKEN used by both jobs
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   build-book:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.11
+          python-version: "3.11"
           cache: "pip"
-      - name: Install Dependencies
+
+      - name: Install dependencies
         run: |
+          python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ -f pyproject.toml ]; then pip install ".[docs]"; fi
-      - name: Build Juputer Book Documentation
+
+      # ── Clean previous build artefacts ────────────────────────────
+      # Ensures renamed/deleted pages don't persist on the live site.
+      - name: Clean old build
+        run: rm -rf _build/
+
+      - name: Build Jupyter Book
         run: |
           jupyter-book build . --config docs/_config.yml --toc docs/_toc.yml
+
+      # Guarantee GitHub Pages doesn't process through Jekyll
+      - name: Ensure .nojekyll exists
+        run: touch _build/html/.nojekyll
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
-        if: github.ref == 'refs/heads/main' && job.status == 'success'
         with:
           path: "_build/html"
 
   deploy-book:
     needs: build-book
+    if: github.ref == 'refs/heads/main'
     permissions:
       pages: write
       id-token: write

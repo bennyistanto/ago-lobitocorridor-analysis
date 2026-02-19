@@ -17,12 +17,14 @@ Stakeholders need a clear, non-code explanation of **what the pipeline does**, h
 
 ## Strategy
 
-Describe the pipeline as a **four-layer sandwich**:
+Describe the pipeline as a **six-layer sandwich**:
 
 1. **Inputs & alignment** (Step 00) → clean, AOI-consistent 1-km stack.
 2. **Priority & selection** (Steps 07/10) → composite score + Top-X envelope.
 3. **Actionable products** (Steps 11–13) → clusters, catchments, synergies.
-4. **Mobility context** (Step 14) → OD-Lite flows for corridor movement.
+4. **Mobility & risk** (Step 14) → OD-Lite flows + bottleneck identification.
+5. **Equity & impact** (Steps 09/16) → benefit incidence, concentration index, intervention simulation.
+6. **Corridor dashboard** (Step 15) → cross-province summary for decision makers.
 
 Keep equations intuitive, knobs transparent, and outputs reproducible.
 
@@ -48,15 +50,20 @@ Keep equations intuitive, knobs transparent, and outputs reproducible.
   From each **project site**, compute **≤30/60/120 min** isochrones over the minutes raster; aggregate **people/cropland** per band, plus marginal gains.
 * **Step 13 – Synergies.**
   For **sites & clusters**, compute **nearest distance** and **counts within 5/10/30 km** to Gov/WB/Other projects → coordination opportunities.
-* **Step 14 – Origin-Destination.**
-  A simple **gravity model** on Admin2 zones (population × opportunities × distance-decay) to highlight **desire lines** and **hub municipalities** (inflow/outflow).
+* **Step 14 – Origin-Destination & bottlenecks.**
+  A simple **gravity model** on Admin2 zones (population × opportunities × distance-decay) to highlight **desire lines** and **hub municipalities** (inflow/outflow). Then overlay those flow lines on the road grid and intersect with the flood-risk mask to rank **bottleneck road cells** by flow load.
+* **Step 15 – Corridor dashboard.**
+  Loop over all AOIs that have been processed, extract headline metrics (top clusters, catchment reach, equity index, OD hubs), and stack them into a **single corridor-wide summary table** plus a cluster inventory. This allows cross-province comparison without re-running individual steps.
+* **Step 16 – Intervention simulator.**
+  Take the friction surface (minutes per km), upgrade a set of road cells (default: all flood-risk cells → 45 km/h), recompute travel times from all project sites, and compare before vs. after. Outputs include a **minutes-saved raster** and a table of **population gaining** at each improvement threshold (5, 10, 15, 30, 60+ minutes saved), plus counts of people **newly within 60/120 minutes** of a project site.
 
 > All chapters simply **load** what these steps write into `/outputs`.
 
 ## Outputs
 
-* Rasters: `outputs/rasters/{AOI}_*.tif` (aligned 1-km stack, selection mask, cluster labels).
-* Tables: `outputs/tables/{AOI}_*.csv` (municipality ranks, clusters KPIs, catchments, synergies, scenarios, OD flows).
+* Rasters: `outputs/rasters/{AOI}_*.tif` (aligned 1-km stack, selection mask, cluster labels, bottleneck risk, travel-time delta).
+* Tables: `outputs/tables/{AOI}_*.csv` (municipality ranks, clusters KPIs, catchments, synergies, scenarios, OD flows, benefit incidence, equity summary, bottleneck cells, impact summary).
+* Corridor-wide: `outputs/tables/corridor_dashboard.csv`, `corridor_cluster_inventory.csv`.
 
 ---
 
@@ -122,10 +129,25 @@ steps = [
         "{AOI}_site_synergies.csv",
         "{AOI}_cluster_synergies.csv",
     ]),
-    ("14 OD-Lite", [
+    ("14 OD-Lite & bottlenecks", [
         "{AOI}_od_gravity.csv",
         "{AOI}_od_zone_attrs.csv",
         "{AOI}_od_agents.csv",
+        "{AOI}_od_bottleneck_cells.csv",
+        "{AOI}_od_bottleneck_risk.tif",
+    ]),
+    ("09 Equity / benefit incidence", [
+        "{AOI}_benefit_incidence.csv",
+        "{AOI}_equity_summary.csv",
+    ]),
+    ("15 Corridor dashboard", [
+        "corridor_dashboard.csv",
+        "corridor_cluster_inventory.csv",
+    ]),
+    ("16 Intervention simulator", [
+        "{AOI}_sim_travel_after.tif",
+        "{AOI}_sim_travel_delta.tif",
+        "{AOI}_sim_impact_summary.csv",
     ]),
 ]
 
@@ -176,7 +198,12 @@ print("Smoothing radius (cells):", p.get("SMOOTH_RADIUS"))
 
 * Think of the **priority surface** as a **heatmap of opportunity**: combining **need (pop, rural, unelectrified)** and **potential (cropland, access)**, optionally tempered by **risk**.
 * **Selection envelope** (Top-% or Top-km²) defines the **actionable area**; **clusters** convert pixels into **projects**.
-* **Catchments** translate project siting into **people reached per minute**; **synergies** show **delivery leverage**; **OD-Lite** connects it to **movement patterns**.
+* **Catchments** translate project siting into **people reached per minute**; **marginal catchments** show how many of those people are **net new** (not already served).
+* **Synergies** show **delivery leverage**; **OD-Lite** connects priorities to **movement patterns**.
+* **Bottleneck overlay** identifies which road cells carry the most modelled flow *and* sit in flood-risk zones—these are the segments where damage would disrupt the most movement.
+* **Equity layers** (benefit incidence curve, concentration index) check whether the selected areas disproportionately serve the poorest municipalities or not.
+* **Intervention simulator** answers "what if we fix road X?"—quantifying how many people gain faster access and by how much.
+* **Corridor dashboard** aggregates all province-level results into a single cross-province comparison table for senior decision makers.
 
 ## Caveats
 

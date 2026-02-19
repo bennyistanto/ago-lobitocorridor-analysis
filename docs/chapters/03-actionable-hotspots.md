@@ -34,7 +34,10 @@ Turn the corridor-wide **priority surface** into **connected clusters** of top-s
 * **Select:** from the priority raster, keep **Top-X** cells by *percentage* or *fixed km²*.
 * **Clean:** remove speckles by **cell count** and **km²** minimums; (optional) Gaussian smooth before selection.
 * **Label:** 8-neighbour connected components → **clusters**.
-* **Summarize:** for each cluster compute **area (km²)**, **population**, **cropland km²**, **% electrified**, **mean travel time**, **mean drought**, and **dominant municipality**.
+* **Summarize:** for each cluster compute **area (km²)**, **population**, **cropland km²**, **% electrified**, **mean travel time**, **mean drought**, **dominant municipality**, plus:
+  - **cropland flood exposure** (km² of cropland also in a flood zone),
+  - **population density** (people/km²) for comparing compact vs. sprawling clusters,
+  - **people per risk road cell** (a benefit-density proxy for cost-effectiveness).
 
 (Produced by Step 11. See Appendix for parameter names.)
 
@@ -117,11 +120,39 @@ plt.title(f"{AOI}: Top clusters by population")
 plt.show()
 ```
 
+**This cell shows clusters with the highest cropland-flood exposure (agricultural risk hotspots).**
+
+```{code-cell} ipython3
+if "cropland_flood_exposed_km2" in clusters.columns:
+    flood_risk = (clusters
+        .sort_values("cropland_flood_exposed_km2", ascending=False)
+        .head(10)[["cluster_id", "NAM_2", "cropland_km2", "cropland_flood_exposed_km2", "pop"]])
+    print("Top clusters by cropland flood exposure (km²)")
+    flood_risk
+else:
+    print("cropland_flood_exposed_km2 not available; re-run Step 11.")
+```
+
+**This cell ranks clusters by benefit density (cost-effectiveness proxy).**
+
+```{code-cell} ipython3
+if "pop_density_per_km2" in clusters.columns:
+    dense = (clusters
+        .sort_values("pop_density_per_km2", ascending=False)
+        .head(10)[["cluster_id", "NAM_2", "pop", "area_km2", "pop_density_per_km2", "pop_per_risk_roadcell"]])
+    print("Top clusters by population density (people/km²)")
+    dense
+else:
+    print("Benefit density columns not available; re-run Step 11.")
+```
+
 ## How to read the results (interpretation)
 
-* **Big & dense beats big & empty.** Prefer clusters with high **pop** and **cropland km²**, not just large area.
+* **Big & dense beats big & empty.** Prefer clusters with high **pop** and **cropland km²**, not just large area. The new **pop_density_per_km2** column makes this comparison direct.
 * **Low electrification = opportunity.** A lower **% electrified** inside a high-pop cluster flags places where power/social services can multiply benefits.
 * **Access matters.** Extremely high **mean travel time** (inside the cluster) suggests harder delivery—pair with a road fix or start elsewhere.
+* **Cropland at flood risk.** Clusters with high **cropland_flood_exposed_km2** face dual vulnerability; they need both agricultural development and flood resilience.
+* **Cost-effectiveness.** **pop_per_risk_roadcell** shows how many people benefit per road segment fixed. Higher = more efficient use of road maintenance budgets.
 * **Municipality alignment.** Use the coverage table to see which **NAM\_2** host most of the promising clusters (cross-check with Chapter 2).
 
 ## Caveats

@@ -46,10 +46,13 @@ What this means for you:
 The analysis provides comparable metrics for any corridor province and its municipalities:
 
 * A customizable priority surface that weighs population, cropland, accessibility, and risk factors
-* Pixel-level analysis converted into **actionable project clusters**
-* **Service catchment** areas calculated using road networks and travel times
+* Pixel-level analysis converted into **actionable project clusters** with cropland-flood exposure and benefit density metrics
+* **Service catchment** areas calculated using road networks and travel times, with **marginal beneficiary** analysis (net new people reached)
 * **Synergy analysis** with existing government, World Bank, and other investments
-* **Origin-destination flow modeling** between municipalities to understand corridor movement patterns
+* **Origin-destination flow modeling** between municipalities, linked to **flood-risk road bottlenecks**
+* **Benefit incidence curves** and **equity index** to measure whether investments reach the poorest
+* **Intervention impact simulator** to test "what if we upgrade road X?" scenarios
+* **Corridor-wide dashboard** comparing all five provinces side by side
 
 The system uses a consistent 1-km grid with rioxarray/xarray tools and careful coordinate system handling for reproducible results
 
@@ -89,35 +92,43 @@ The system uses a consistent 1-km grid with rioxarray/xarray tools and careful c
    Equity check: correlations and outliers at municipality level to validate targeting approaches.
 
 8. **[How do places in the corridor interact?](chapters/08-movement.md)**
-   
+
    Flow patterns between municipalities and sample trips, where exchanges are strongest under current conditions.
 
-9. **[Change the settings, not the code](chapters/09-cheatsheet.md)**
-   
-   Quick reference to adjust weights, masks, thresholds, and area limits before re-running the analysis.
+9. **[Which road segments carry the most risk?](chapters/08b-bottlenecks.md)**
 
-10. **[Run this anywhere along the corridor](chapters/10-aoi-playbook.md)**
-    
+   OD flows overlaid on flood-risk road cells: which bottlenecks would disrupt the most movement if damaged?
+
+10. **[What if we upgrade a road?](chapters/08c-impact-simulator.md)**
+
+    Simulate a road upgrade and see how many people gain faster access and where the biggest improvements land.
+
+11. **[Change the settings, not the code](chapters/09-cheatsheet.md)**
+
+    Quick reference to adjust weights, masks, thresholds, and area limits before re-running the analysis.
+
+12. **[Run this anywhere along the corridor](chapters/10-aoi-playbook.md)**
+
     Simple steps to switch to different areas or provinces and recreate the analysis.
 
-11. **[What data goes in?](chapters/11-data-menu.md)**
-    
+13. **[What data goes in?](chapters/11-data-menu.md)**
+
     Complete list of input data: rasters and municipality-level themes with units and resolution.
 
-12. **[How it works](chapters/12-how-it-works.md)**
-    
-    The logic behind data processing, scoring, clustering, travel time calculations, and flow modeling.
+14. **[How it works](chapters/12-how-it-works.md)**
 
-13. **[Handle with care](chapters/13-limits.md)**
-    
+    The logic behind data processing, scoring, clustering, travel time calculations, flow modeling, and impact simulation.
+
+15. **[Handle with care](chapters/13-limits.md)**
+
     Known limitations (OpenStreetMap coverage, proxy indicators) and how to quality-check outputs.
 
-14. **[Documentation & reproducibility](chapters/14-provenance.md)**
-    
+16. **[Documentation & reproducibility](chapters/14-provenance.md)**
+
     Complete record of area, date, parameters, and file paths used for results.
 
-15. **[Appendix for analysts](chapters/15-appendix.md)**
-    
+17. **[Appendix for analysts](chapters/15-appendix.md)**
+
     Full parameter tables, equations, script descriptions, and outputs inventory.
 ``````
 
@@ -126,11 +137,12 @@ The system uses a consistent 1-km grid with rioxarray/xarray tools and careful c
 ## Repository structure
 
 ```
-src/          # Processing steps 00-14 plus geo utilities
-notebooks/    # Pipeline runner and analysis chapters  
+src/          # Processing steps 00-16 plus geo utilities
+notebooks/    # Pipeline runner and analysis chapters
 data/         # Input vectors and rasters by area
 outputs/      # Results: rasters, tables, figures
 docs/         # Jupyter book documentation
+tests/        # Smoke tests
 ```
 
 ---
@@ -138,15 +150,13 @@ docs/         # Jupyter book documentation
 ## Current status
 
 * Core 1-km data processing, vector alignment, flood aggregation, and reliable output generation
-* Flexible priority scoring with area/percentage selection and cluster analysis  
-* Catchment analysis, synergy mapping, and origin-destination flow modeling
+* Flexible priority scoring with area/percentage selection and cluster analysis
+* Catchment analysis with marginal beneficiary tracking (net new people reached)
+* Synergy mapping and origin-destination flow modeling with bottleneck identification
+* Benefit incidence analysis and concentration index for equity measurement
+* Intervention impact simulation (road upgrade scenarios with population-level deltas)
+* Corridor-wide dashboard aggregating metrics across all five provinces
 * Complete documentation with copy-paste code examples and parameter guides
-
----
-
-## What's coming next
-
-TBD
 
 ---
 
@@ -160,10 +170,9 @@ TBD
 
 ## How to use this guide
 
-* Start with **Chapters 1-2** for the **quick answer** and **priority list**  
-* Jump to **Chapter 3** for **priority clusters** or **Chapter 5** for **service catchments**  
-* Use **Chapters 4 & 9** to **adjust settings** without coding  
-* Check **Chapters 13-14** for **limitations** and **complete documentation**
+* **Decision makers**: Start with **Chapters 1-2** for priorities, then **Chapter 7** for equity and **Chapter 10** for impact simulation
+* **Infrastructure engineers**: Jump to **Chapter 3** for clusters, **Chapter 5** for catchments, or **Chapter 9** for bottlenecks
+* **Analysts**: Use **Chapters 4 & 11** to adjust settings, **Chapters 15-17** for methods and reproducibility
 
 ---
 
@@ -179,7 +188,7 @@ TBD
 
 2. Review `src/config.py` for data paths and parameters (weights, masks, road speeds)
 
-3. Run processing steps **00 → 14** from `src/` or use the provided notebooks, then explore the chapters
+3. Run processing steps **00 → 16** from `src/` or use the provided notebooks, then explore the chapters
 
 ---
 

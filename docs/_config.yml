@@ -58,7 +58,8 @@ launch_buttons:
 
 # Information about where the book exists on the web
 repository:
-  url: https://github.com/worldbank/AGO_corridor_analysis  # Online location of your book
+  # url: https://github.com/worldbank/AGO_corridor_analysis  # Online location of your book
+  url: https://github.com/bennyistanto/ago-lobitocorridor-analysis  # Online location of your book
   #path_to_book: book  # Optional path to your book, relative to the repository root
   branch: main  # Which branch of the repository should be used when creating links (optional)
 
@@ -82,7 +83,7 @@ html:
   use_repository_button: true # Whether to add a link to your repository button
   use_issues_button: true # Whether to add an "open an issue" button
   use_multitoc_numbering: true # Continuous numbering across parts/chapters
-  baseurl: https://worldbank.github.io/AGO_corridor_analysis/README.html
+  baseurl: https://bennyistanto.github.io/ago-lobitocorridor-analysis/
   extra_navbar: Powered by <a href="https://jupyterbook.org">Jupyter Book</a>  # Will be displayed underneath the left navbar.
   extra_footer: |
     <div>

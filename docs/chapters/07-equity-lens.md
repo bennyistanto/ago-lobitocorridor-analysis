@@ -29,11 +29,14 @@ Join the **priority results** to **RAPP** socio-economic themes (poverty, food i
 
 * Merge **priority score** per municipality with **rural poverty** and **food-insecurity** indicators (from RAPP).
 * Compute **Pearson r** (score vs rural poverty; score vs food insecurity).
+* Compute a **benefit incidence curve** (cumulative benefit vs. cumulative population, ranked poorest→richest) and a **concentration index** (CI) that summarizes pro-poor or pro-rich targeting in a single number.
 * List **equity outliers**: municipalities with top priority but bottom-half poverty (and the reverse).
 * (Optional) Note which **priority clusters** fall inside high-poverty municipalities.
 
 ## Outputs
 
+* `outputs/tables/{AOI}_benefit_incidence.csv` — benefit incidence curve data (ADM2, poverty, cumulative shares)
+* `outputs/tables/{AOI}_equity_summary.csv` — concentration index, interpretation, totals
 * Equity diagnostics are **displayed in this chapter** from the already-saved tables; no new files required.
 * *(Optional)* Save a light extract for slides as `outputs/tables/{AOI}_equity_lens_extract.csv` (see last cell).
 
@@ -129,6 +132,50 @@ else:
     print("Poverty column not found; skipping scatter.")
 ```
 
+**This cell loads the concentration index — a single number that summarizes whether benefits are pro-poor.**
+
+```{code-cell} ipython3
+eq_path = OUT / f"{AOI}_equity_summary.csv"
+bi_path = OUT / f"{AOI}_benefit_incidence.csv"
+
+if eq_path.exists():
+    eq = pd.read_csv(eq_path)
+    ci = eq["concentration_index"].iloc[0]
+    interp = eq["interpretation"].iloc[0]
+    print(f"Concentration Index (CI) = {ci:.4f}")
+    print(f"Interpretation: {interp}")
+    print()
+    print("What this means:")
+    print("  CI > 0  → Benefits flow to poorer municipalities (pro-poor)")
+    print("  CI < 0  → Benefits flow to richer municipalities (pro-rich)")
+    print("  CI ≈ 0  → Benefits distributed roughly evenly across income levels")
+else:
+    print("Equity summary not found; run Step 09.")
+```
+
+**This cell plots the benefit incidence curve — a visual equity diagnostic for presentations.**
+
+```{code-cell} ipython3
+if bi_path.exists():
+    bi = pd.read_csv(bi_path)
+    plt.figure(figsize=(7, 5))
+    plt.fill_between(bi["cum_pop_share"], bi["cum_benefit_share"], bi["cum_pop_share"],
+                     where=(bi["cum_benefit_share"] >= bi["cum_pop_share"]),
+                     alpha=0.2, color="green", label="Pro-poor zone")
+    plt.fill_between(bi["cum_pop_share"], bi["cum_benefit_share"], bi["cum_pop_share"],
+                     where=(bi["cum_benefit_share"] < bi["cum_pop_share"]),
+                     alpha=0.2, color="red", label="Pro-rich zone")
+    plt.plot(bi["cum_pop_share"], bi["cum_benefit_share"], "b-o", ms=4, label="Benefit incidence")
+    plt.plot([0, 1], [0, 1], "k--", alpha=0.5, label="Perfect equality")
+    plt.xlabel("Cumulative population share (poorest → richest)")
+    plt.ylabel("Cumulative benefit share")
+    plt.title(f"{AOI}: Are investment benefits reaching the poor?")
+    plt.legend(loc="lower right")
+    plt.show()
+else:
+    print("Benefit incidence table not found; run Step 09.")
+```
+
 **(Optional) This cell saves a compact extract for slides (top-10 by score with poverty & food fields).**
 
 ```{code-cell} ipython3
@@ -145,6 +192,8 @@ extract_path
 ## How to read the results (interpretation)
 
 * **Positive correlation** (score vs. rural poverty) suggests priorities are skewing toward **poorer municipalities**—often desirable.
+* **Concentration index > 0** is the strongest evidence of pro-poor targeting. Unlike correlation, the CI accounts for population sizes and benefit magnitudes, not just ranks.
+* **Benefit incidence curve above the diagonal** means poorer municipalities receive a larger share of benefits than their share of population — the ideal outcome.
 * **Weak/negative correlation** is not automatically bad; it may mean proxies (e.g., NTL/VEG) favor less-poor places—use Chapter 4 scenarios to retune.
 * **Outliers A (high priority, low poverty)**: plausible logistics wins—flag for justification or rebalance.
 * **Outliers B (high poverty, low priority)**: consider whether access or production constraints hide need—explore targeted fixes.
@@ -158,4 +207,6 @@ extract_path
 ### Download
 
 * Municipality **ranking** → `outputs/tables/{AOI}_priority_muni_rank.csv`
+* Benefit **incidence curve** → `outputs/tables/{AOI}_benefit_incidence.csv`
+* **Equity summary** (concentration index) → `outputs/tables/{AOI}_equity_summary.csv`
 * (Optional) Equity extract for slides → `outputs/tables/{AOI}_equity_lens_extract.csv`

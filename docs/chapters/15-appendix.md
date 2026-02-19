@@ -17,7 +17,7 @@ Analysts need a **single reference** that maps scripts → parameters → output
 
 ## Strategy
 
-Provide a **crosswalk** of steps (00→14), a **parameter glossary** (what each knob does), and tiny **inspection cells** for `/outputs`.
+Provide a **crosswalk** of steps (00→16), a **parameter glossary** (what each knob does), and tiny **inspection cells** for `/outputs`.
 
 ## Data
 
@@ -53,7 +53,9 @@ None—reference page only.
 | 11   | `step_11_priority_clusters.py` | Labels Top-X, prunes, computes cluster KPIs  | `rasters/{AOI}_priority_top10_mask.tif` (or km² name), `rasters/{AOI}_priority_clusters_1km.tif`, `tables/{AOI}_priority_clusters.csv` |
 | 12   | `step_12_traveltime_catchments.py` | Catchments per site (≤30/60/120 min)  | `tables/{AOI}_catchments_kpis.csv` |
 | 13   | `step_13_synergies_overlay.py` | Proximity to Gov/WB/Other projects  | `tables/{AOI}_site_synergies.csv`, `tables/{AOI}_cluster_synergies.csv` |
-| 14   | `step_14_lite_od.py` | Admin2 gravity flows + agent samples  | `tables/{AOI}_od_gravity.csv`, `tables/{AOI}_od_zone_attrs.csv`, `tables/{AOI}_od_agents.csv` |
+| 14   | `step_14_lite_od.py` | Admin2 gravity flows + agent samples + bottleneck overlay  | `tables/{AOI}_od_gravity.csv`, `tables/{AOI}_od_zone_attrs.csv`, `tables/{AOI}_od_agents.csv`, `tables/{AOI}_od_bottleneck_cells.csv`, `rasters/{AOI}_od_bottleneck_risk.tif` |
+| 15   | `step_15_corridor_dashboard.py` | Aggregates per-AOI metrics into corridor-wide summary | `tables/corridor_dashboard.csv`, `tables/corridor_cluster_inventory.csv` |
+| 16   | `step_16_intervention_simulator.py` | Simulates road upgrade; computes travel-time deltas and population impact | `rasters/{AOI}_sim_travel_after.tif`, `rasters/{AOI}_sim_travel_delta.tif`, `tables/{AOI}_sim_impact_summary.csv` |
 
 > Exact filenames may vary slightly if you selected **Top-km²** instead of **Top-%** in Step 10.
 
@@ -87,6 +89,20 @@ None—reference page only.
 * **Admin2 themes (RAPP):**
   `ADMIN2_THEMES` — tuple of theme names (e.g., `("poverty","foodsec")`) to ingest.
   `THEME_VARS` — mapping from theme → dict of column codes to friendly names for Step 06.
+
+* **OD model (Step 14):**
+  `OD_ALPHA`, `OD_BETA`, `OD_LAMBDA`, `OD_GAMMA` — gravity model exponents for origin mass, destination mass, distance decay, and balancing.
+  `OD_N_AGENTS` — number of sampled agent trips (0 = skip sampling).
+
+* **Bottleneck overlay (Step 14):**
+  Uses the flood-risk road mask (`{AOI}_roads_flood_risk_cells_1km.tif` from Step 04) and the OD flow lines to rank cells. No extra parameters needed—controlled by the gravity model settings above.
+
+* **Corridor dashboard (Step 15):**
+  `CORRIDOR_AOIS` — tuple of AOI names to include (e.g., `("benguela","huambo","bie","moxico","moxicoleste")`). Each must already have completed Steps 07–14.
+
+* **Intervention simulator (Step 16):**
+  `SIM_TARGET_SPEED_KMH` — target road speed in km/h for upgraded cells (default: 45, secondary road standard).
+  Uses the flood-risk road mask as the default set of cells to upgrade; override by supplying a custom binary mask.
 
 ---
 

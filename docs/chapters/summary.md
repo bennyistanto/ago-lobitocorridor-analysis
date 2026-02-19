@@ -30,10 +30,15 @@ flowchart TB
         B3["Step 11: Priority clusters"]
         B4["Step 12: Catchments (30 / 60 / 120 min)"]
         B5["Step 13: Project synergies"]
-        B6["Step 14: OD-lite flows"]
+        B6["Step 14: OD-lite flows & bottlenecks"]
+  end
+ subgraph Extended["Extended analysis"]
+        D1["Step 09: Benefit incidence & equity index"]
+        D2["Step 16: Intervention simulator"]
+        D3["Step 15: Corridor dashboard"]
   end
  subgraph Outputs["Outputs"]
-        C1["Summary tables S1–S5"]
+        C1["Summary tables S1–S9"]
         C2["Maps and dashboard views"]
   end
     A1 --> B1
@@ -41,11 +46,14 @@ flowchart TB
     A3 --> B1 & B4
     A4 --> B4 & B5
     B1 --> B2 & B3
-    B2 --> B3 & B6
+    B2 --> B3 & B6 & D1
     B3 --> B4 & B5 & C2
     B4 --> C1 & C2
     B5 --> C1 & C2
-    B6 --> C1 & C2
+    B6 --> C1 & C2 & D2
+    D1 --> C1
+    D2 --> C1 & C2
+    D3 --> C1
 ```
 
 ---
@@ -458,6 +466,19 @@ flowchart TB
 :::{tab-item} Benguela
 :sync: key1
 
+| Province (AOI) | Site ID | Site type | Population within 60 min | Cropland (km²) within 60 min | % of provincial population within 60 min of this site |
+| ---- | ---- | ---- | ---- | ---- | ---- | 
+| Benguela       | site_24 | unknown   | 1654574   | 34.65    | 50.57  |
+| Benguela       | site_1  | unknown   | 1643762   | 41.90    | 50.24  |
+| Benguela       | site_19 | unknown   | 961441    | 147.34   | 29.39  |
+| Benguela       | site_26 | unknown   | 393440    | 816.40   | 12.03  |
+| Benguela       | site_25 | unknown   | 393440    | 816.40   | 12.03  |
+| Benguela       | site_22 | unknown   | 240769    | 456.21   | 7.36   |
+| Benguela       | site_21 | unknown   | 175871    | 502.51   | 5.38   |
+| Benguela       | site_15 | unknown   | 167291    | 77.60    | 5.11   |
+| Benguela       | site_20 | unknown   | 166425    | 296.00   | 5.09   |
+| Benguela       | site_13 | unknown   | 134638    | 86.88    | 4.12   |
+
 :::
 
 :::{tab-item} Huambo
@@ -518,22 +539,22 @@ and corridor infrastructure.
 ::::{tab-set}
 :::{tab-item} Benguela
 :sync: key1
-![S3-Benguela](../../outputs/figs/benguela_fig_s3_catchments_union.png)
+![S3-Benguela](../../outputs/figs/AGO_A4L_LC_Benguela_CatchmentPriorityAreas.png)
 :::
 
 :::{tab-item} Huambo
 :sync: key2
-![S3-Huambo](../../outputs/figs/huambo_fig_s3_catchments_union.png)
+![S3-Huambo](../../outputs/figs/AGO_A4L_LC_Huambo_CatchmentPriorityAreas.png)
 :::
 
 :::{tab-item} Bie
 :sync: key3
-![S3-Bie](../../outputs/figs/bie_fig_s3_catchments_union.png)
+![S3-Bie]()
 :::
 
 :::{tab-item} Moxico
 :sync: key4
-![S3-Moxico](../../outputs/figs/moxico_fig_s3_catchments_union.png)
+![S3-Moxico](../../outputs/figs/AGO_A4L_LC_Moxico_CatchmentPriorityAreas.png)
 :::
 
 :::{tab-item} Moxico Leste
@@ -615,10 +636,10 @@ number of nearby projects** within 30 km.
 
 | Province (AOI) | Cluster ID | Projects within 10 km (Gov) | Projects within 10 km (WB) | Projects within 10 km (Other) | Total projects within 10 km |
 | ---- | ---- | ---- | ---- | ---- | ---- |
-| Benguela         | 2 | 0 | 0 | 0 | 0 |
-| Benguela         | 1 | 0 | 0 | 0 | 0 |
-| Benguela         | 4 | 0 | 0 | 0 | 0 |
-| Benguela         | 3 | 0 | 0 | 0 | 0 |
+| Benguela         | 3 | 0 | 3 | 0 | 3 |
+| Benguela         | 2 | 0 | 2 | 0 | 2 |
+| Benguela         | 4 | 0 | 2 | 0 | 2 |
+| Benguela         | 1 | 0 | 1 | 0 | 1 |
 
 :::
 
@@ -893,19 +914,669 @@ flowchart TB
 
 ---
 
-## 6. How to read this page alongside the rest of the book
+## 6. Are investments reaching the poorest?
+
+The equity analysis (Step 09) goes beyond the quadrant scatter plot above
+to produce a formal **benefit incidence curve** and **concentration index
+(CI)** for each province. These tools answer a precise question: *when we
+rank municipalities from poorest to richest, what share of priority-area
+benefits accrues to the bottom half?*
+
+> Flowchart below summarises how the benefit incidence curve and concentration index are derived from the municipality ranking, and how they feed into Table S6 and Figure S6.
+
+```{mermaid}
+---
+config:
+  layout: dagre
+---
+flowchart TB
+ subgraph S9_inputs["Inputs"]
+        s9i1["Municipality composite scores (Step 09)"]
+        s9i2["Rural poverty index per municipality"]
+        s9i3["Population per municipality"]
+        s9i4["Share of priority area per municipality"]
+  end
+ subgraph S9_process["Processing"]
+        s9p1["Rank municipalities poorest to richest"]
+        s9p2["Compute cumulative population share"]
+        s9p3["Compute cumulative benefit share (priority area coverage)"]
+        s9p4["Plot benefit incidence curve against 45 degree line"]
+        s9p5["Calculate concentration index: CI = 2 times sum of gap times population shares"]
+        s9p6["Classify: CI > 0 pro-poor, CI < 0 pro-rich, CI near 0 neutral"]
+  end
+ subgraph S9_outputs["Outputs for Summary 6"]
+        s9o1["Table S6: concentration index by province"]
+        s9o2["Figure S6: benefit incidence curves"]
+        s9o3["Equity messages: pro-poor, neutral, or pro-rich"]
+  end
+    s9i1 --> s9p1
+    s9i2 --> s9p1
+    s9i3 --> s9p2
+    s9i4 --> s9p3
+    s9p1 --> s9p2 & s9p3
+    s9p2 --> s9p4
+    s9p3 --> s9p4
+    s9p4 --> s9p5
+    s9p5 --> s9p6
+    s9p6 --> s9o1 & s9o3
+    s9p4 --> s9o2
+```
+
+**Table S6** reports, for each province, the **concentration index** and
+a plain-language interpretation. A positive CI means the current priority
+surface disproportionately benefits poorer municipalities; a negative CI
+means it skews toward better-off areas.
+
+> **Table S6. Concentration index by province (illustrative structure)**
+> *Generated from `{AOI}_equity_summary.csv` (one file per province).*
+
+| Province (AOI) | Concentration Index (CI) | Interpretation | Number of municipalities in ranking | Share of benefits going to bottom 50% of population |
+| ---- | ---- | ---- | ---- | ---- |
+| Benguela | 0.5961 | pro-poor | 10 | 86.6% of benefits |
+| Huambo | -0.3441 | pro-rich | 11 | 20.5% of benefits |
+| Bie | -0.5464 | pro-rich | 9 | 0.0% |
+| Moxico | -1.523 | pro-rich | 5 | 0.0% (no priority zones) |
+| Moxico Leste | -1.3438 | pro-rich | 4 | 0.0% (no priority zones) |
+
+**How to read the CI:**
+
+- **CI > 0.05**: Priority selection is meaningfully **pro-poor** — the
+  current weights and thresholds direct investment toward areas of greatest
+  need.
+- **CI near 0**: **Neutral** — the selection neither favors nor
+  disadvantages poorer municipalities. Consider whether the policy intent
+  calls for pro-poor targeting.
+- **CI < −0.05**: **Pro-rich** — richer municipalities capture a
+  disproportionate share of benefits. Review weights (especially
+  `W_POV`, `W_FOOD`) or lower the minimum cropland threshold.
+
+**Figure S6** shows, for each province, the **benefit incidence curve**.
+If the curve lies above the 45-degree diagonal, priority-area benefits are
+concentrated among poorer municipalities (pro-poor). If below, benefits
+skew toward better-off areas.
+
+> **Figure S6. Benefit incidence curves by province**
+> *Generated from `{AOI}_benefit_incidence.csv`. The shaded area between
+> the curve and the diagonal represents the concentration index.*
+
+::::{tab-set}
+:::{tab-item} Benguela
+:sync: key1
+![S6-Benguela](../../outputs/figs/benguela_fig_s6_benefit_incidence.png)
+:::
+
+:::{tab-item} Huambo
+:sync: key2
+![S6-Huambo](../../outputs/figs/huambo_fig_s6_benefit_incidence.png)
+:::
+
+:::{tab-item} Bie
+:sync: key3
+![S6-Bie](../../outputs/figs/bie_fig_s6_benefit_incidence.png)
+:::
+
+:::{tab-item} Moxico
+:sync: key4
+![S6-Moxico](../../outputs/figs/moxico_fig_s6_benefit_incidence.png)
+:::
+
+:::{tab-item} Moxico Leste
+:sync: key5
+![S6-MoxicoLeste](../../outputs/figs/moxicoleste_fig_s6_benefit_incidence.png)
+:::
+::::
+
+---
+
+## 7. What if we upgrade the most vulnerable roads?
+
+The intervention simulator (Step 16) models the impact of upgrading
+flood-vulnerable road segments to secondary-road standard (45 km/h). It
+answers: *how many people would gain faster access to project sites, and
+by how much?*
+
+> Flowchart below summarises how the intervention simulation upgrades flood-risk road cells, recomputes travel times, and produces the impact metrics presented in Table S7 and Figure S7.
+
+```{mermaid}
+---
+config:
+  layout: dagre
+---
+flowchart TB
+ subgraph S10_inputs["Inputs"]
+        s10i1["Friction surface: minutes per km"]
+        s10i2["Flood-risk road cells (Step 04)"]
+        s10i3["Project site locations"]
+        s10i4["Population grid"]
+        s10i5["Target upgrade speed: 45 km/h"]
+  end
+ subgraph S10_process["Processing"]
+        s10p1["Compute baseline travel time from all sites"]
+        s10p2["Set flood-risk road cells to target speed"]
+        s10p3["Recompute travel time on improved network"]
+        s10p4["Subtract: minutes saved per grid cell"]
+        s10p5["Count population by improvement threshold: 5, 10, 15, 30, 60 plus minutes"]
+        s10p6["Count people newly within 60 and 120 minutes of a site"]
+  end
+ subgraph S10_outputs["Outputs for Summary 7"]
+        s10o1["Table S7: population gaining by threshold"]
+        s10o2["Figure S7: impact bar charts"]
+        s10o3["Messages on quick wins and transformative gains"]
+  end
+    s10i1 --> s10p1
+    s10i2 --> s10p2
+    s10i3 --> s10p1
+    s10i4 --> s10p5
+    s10i5 --> s10p2
+    s10p1 --> s10p4
+    s10p2 --> s10p3
+    s10p3 --> s10p4
+    s10p4 --> s10p5 & s10p6
+    s10p5 --> s10o1 & s10o2
+    s10p6 --> s10o1
+    s10o1 --> s10o3
+    s10o2 --> s10o3
+```
+
+**Table S7** reports, for each province, the population gaining
+at each improvement threshold after upgrading flood-risk road
+cells to 45 km/h.
+
+> **Table S7. Population gaining by improvement threshold**
+> *Generated from `{AOI}_sim_impact_summary.csv` (one file per province).
+> Scenario: `upgrade_risk_roads_to_45kmh`.*
+
+::::{tab-set}
+:::{tab-item} Benguela
+:sync: key1
+
+| Threshold | Population gaining | Area gaining (km²) |
+| ---- | ----: | ----: |
+| ≥ 5 min saved | 987,712 | 31,590 |
+| ≥ 10 min saved | 94,230 | 14,648 |
+| ≥ 15 min saved | 18,963 | 5,096 |
+| ≥ 30 min saved | 73 | 169 |
+| ≥ 60 min saved | 42 | 62 |
+| **Newly within 60 min** | **41,508** | **911** |
+| **Newly within 120 min** | **26,320** | **969** |
+
+:::
+
+:::{tab-item} Huambo
+:sync: key2
+
+| Threshold | Population gaining | Area gaining (km²) |
+| ---- | ----: | ----: |
+| ≥ 5 min saved | 37,539 | 2,792 |
+| ≥ 10 min saved | 17 | 2 |
+| ≥ 15 min saved | 0 | 0 |
+| ≥ 30 min saved | 0 | 0 |
+| ≥ 60 min saved | 0 | 0 |
+| **Newly within 60 min** | **6,143** | **150** |
+| **Newly within 120 min** | **5,791** | **129** |
+
+:::
+
+:::{tab-item} Bie
+:sync: key3
+
+*Simulation data not yet available for Bie. Run Step 16 to generate.*
+
+:::
+
+:::{tab-item} Moxico
+:sync: key4
+
+| Threshold | Population gaining | Area gaining (km²) |
+| ---- | ----: | ----: |
+| ≥ 5 min saved | 73,049 | 188,626 |
+| ≥ 10 min saved | 48,784 | 160,093 |
+| ≥ 15 min saved | 32,172 | 140,848 |
+| ≥ 30 min saved | 17,295 | 90,414 |
+| ≥ 60 min saved | 4,596 | 41,873 |
+| **Newly within 60 min** | **11,042** | **2,344** |
+| **Newly within 120 min** | **5,015** | **6,623** |
+
+:::
+
+:::{tab-item} Moxico Leste
+:sync: key5
+
+*Simulation data not yet available for Moxico Leste. Run Step 16 to generate.*
+
+:::
+::::
+
+**How to read the impact table:**
+
+- **Large populations at low thresholds** (many people gaining 5–10 min):
+  widespread but modest improvement — typical of upgrading a few key
+  segments on a busy route.
+- **Smaller populations at high thresholds** (fewer people gaining 30+ min):
+  transformative improvement for remote communities — often more important
+  for equity.
+- **Newly within 60 min**: the single most actionable metric — these are
+  people who previously had **no reasonable access** to project sites and
+  now do.
+
+**Figure S7** shows, for each province, a bar chart of population gaining
+at each improvement threshold, with the "newly within 60 min" metric
+highlighted.
+
+> **Figure S7. Intervention impact: population gaining by threshold**
+> *Generated from `{AOI}_sim_impact_summary.csv`. Bar chart showing
+> population at each minutes-saved threshold, plus newly-within-60-min.*
+
+::::{tab-set}
+:::{tab-item} Benguela
+:sync: key1
+![S7-Benguela](../../outputs/figs/benguela_fig_s7_intervention_impact.png)
+:::
+
+:::{tab-item} Huambo
+:sync: key2
+![S7-Huambo](../../outputs/figs/huambo_fig_s7_intervention_impact.png)
+:::
+
+:::{tab-item} Bie
+:sync: key3
+![S7-Bie](../../outputs/figs/bie_fig_s7_intervention_impact.png)
+:::
+
+:::{tab-item} Moxico
+:sync: key4
+![S7-Moxico](../../outputs/figs/moxico_fig_s7_intervention_impact.png)
+:::
+
+:::{tab-item} Moxico Leste
+:sync: key5
+![S7-MoxicoLeste](../../outputs/figs/moxicoleste_fig_s7_intervention_impact.png)
+:::
+::::
+
+---
+
+## 8. How many people does each site uniquely serve?
+
+The marginal catchment analysis (Step 15) goes beyond raw catchment size
+to answer: *of the population within 60 minutes of a site, how many are
+**not** already closer to a higher-ranked site?* This measures the
+**net-new beneficiaries** each project uniquely brings.
+
+> Flowchart below summarises how the marginal catchment is computed by
+> iteratively removing already-served populations, producing Table S8
+> and Figure S8.
+
+```{mermaid}
+---
+config:
+  layout: dagre
+---
+flowchart TB
+ subgraph S8_inputs["Inputs"]
+        s8i1["Isochrone catchments per site (Step 10)"]
+        s8i2["Population grid"]
+        s8i3["Site ranking by total 60-min catchment"]
+  end
+ subgraph S8_process["Processing"]
+        s8p1["Rank sites by total catchment size (descending)"]
+        s8p2["For top-ranked site: marginal = total catchment"]
+        s8p3["For each subsequent site: subtract population already within a higher-ranked catchment"]
+        s8p4["Compute pct_marginal = marginal / total"]
+        s8p5["Repeat for 30, 60, 120, 240-min thresholds"]
+  end
+ subgraph S8_outputs["Outputs for Summary 8"]
+        s8o1["Table S8: sites ranked by net-new beneficiaries"]
+        s8o2["Figure S8: total vs marginal catchment per site"]
+        s8o3["Messages on unique reach and overlap"]
+  end
+    s8i1 --> s8p1
+    s8i2 --> s8p2
+    s8i3 --> s8p1
+    s8p1 --> s8p2
+    s8p2 --> s8p3
+    s8p3 --> s8p4
+    s8p4 --> s8p5
+    s8p5 --> s8o1 & s8o2
+    s8o1 --> s8o3
+```
+
+**Table S8** reports, for each site in a province, the **net-new
+population** at the 60-minute threshold. Sites with high total
+catchment but low marginal share indicate significant overlap with
+higher-ranked sites. Sites with high marginal share are uniquely
+important.
+
+> **Table S8. Net new beneficiaries by site (60-min threshold)**
+> *Generated from `{AOI}_marginal_catchment.csv` (one file per province).
+> Top 10 sites ranked by marginal population.*
+
+::::{tab-set}
+:::{tab-item} Benguela
+:sync: key1
+
+| Site | Net New Pop | Total Catchment | % Marginal |
+| ---- | ----: | ----: | ----: |
+| S21 | 175,871 | 175,871 | 100.0% |
+| S19 | 81,866 | 961,440 | 8.5% |
+| S26 | 39,384 | 393,440 | 10.0% |
+| S25 | 39,384 | 393,440 | 10.0% |
+| S13 | 38,440 | 134,638 | 28.6% |
+| S9 | 37,688 | 57,246 | 65.8% |
+| S8 | 37,688 | 57,246 | 65.8% |
+| S22 | 36,238 | 240,769 | 15.1% |
+| S15 | 35,615 | 167,291 | 21.3% |
+| S10 | 35,381 | 58,306 | 60.7% |
+
+:::
+
+:::{tab-item} Huambo
+:sync: key2
+
+| Site | Net New Pop | Total Catchment | % Marginal |
+| ---- | ----: | ----: | ----: |
+| S3 | 134,938 | 187,037 | 72.1% |
+| S39 | 117,202 | 244,220 | 48.0% |
+| S25 | 106,990 | 127,032 | 84.2% |
+| S4 | 106,292 | 138,067 | 77.0% |
+| S36 | 100,834 | 635,411 | 15.9% |
+| S28 | 98,508 | 623,511 | 15.8% |
+| S26 | 94,373 | 100,811 | 93.6% |
+| S37 | 94,257 | 998,940 | 9.4% |
+| S27 | 93,131 | 99,103 | 94.0% |
+| S29 | 89,559 | 289,716 | 30.9% |
+
+:::
+
+:::{tab-item} Bie
+:sync: key3
+
+*Marginal catchment data not yet available for Bie. Run Step 15 to generate.*
+
+:::
+
+:::{tab-item} Moxico
+:sync: key4
+
+| Site | Net New Pop | Total Catchment | % Marginal |
+| ---- | ----: | ----: | ----: |
+| S5 | 19,370 | 19,370 | 100.0% |
+| S7 | 10,912 | 14,404 | 75.8% |
+| S3 | 9,982 | 9,982 | 100.0% |
+| S12 | 7,576 | 7,804 | 97.1% |
+| S10 | 6,146 | 47,157 | 13.0% |
+| S8 | 3,706 | 3,706 | 100.0% |
+| S1 | 1,623 | 1,623 | 100.0% |
+| S11 | 1,500 | 47,240 | 3.2% |
+| S4 | 1,472 | 1,472 | 100.0% |
+| S2 | 842 | 68,133 | 1.2% |
+
+:::
+
+:::{tab-item} Moxico Leste
+:sync: key5
+
+*Marginal catchment data not yet available for Moxico Leste. Run Step 15 to generate.*
+
+:::
+::::
+
+**How to read the marginal catchment:**
+
+- **100% marginal**: This site serves an entirely new population that
+  no higher-ranked site covers. Highest strategic value.
+- **High total, low % marginal**: The site's catchment overlaps
+  heavily with a higher-ranked site. Consider whether both sites are
+  needed, or if resources should shift to less-served areas.
+- **Small marginal, remote location**: Even modest net-new
+  populations may represent important equity gains in underserved areas.
+
+**Figure S8** shows, for each province, a stacked bar chart comparing
+total catchment vs net-new (marginal) population per site at the
+60-minute threshold. Gray bars show overlap with higher-ranked sites;
+blue bars show unique reach.
+
+> **Figure S8. Net new beneficiaries by site**
+> *Generated from `{AOI}_marginal_catchment.csv`. Stacked horizontal
+> bars showing overlap (gray) and net-new (blue) populations.*
+
+::::{tab-set}
+:::{tab-item} Benguela
+:sync: key1
+![S8-Benguela](../../outputs/figs/benguela_fig_s8_marginal_catchment.png)
+:::
+
+:::{tab-item} Huambo
+:sync: key2
+![S8-Huambo](../../outputs/figs/huambo_fig_s8_marginal_catchment.png)
+:::
+
+:::{tab-item} Bie
+:sync: key3
+![S8-Bie](../../outputs/figs/bie_fig_s8_marginal_catchment.png)
+:::
+
+:::{tab-item} Moxico
+:sync: key4
+![S8-Moxico](../../outputs/figs/moxico_fig_s8_marginal_catchment.png)
+:::
+
+:::{tab-item} Moxico Leste
+:sync: key5
+![S8-MoxicoLeste](../../outputs/figs/moxicoleste_fig_s8_marginal_catchment.png)
+:::
+::::
+
+---
+
+## 9. Where are the road bottlenecks?
+
+The OD-bottleneck overlay (Step 15) combines origin-destination flow
+modelling with flood-risk mapping to pinpoint the road cells that
+carry the highest gravity-weighted traffic **and** sit on
+flood-vulnerable segments. These are the cells where a single washout
+would disrupt the most market connections.
+
+> Flowchart below summarises how OD flows are rasterised onto
+> flood-risk road cells, producing Table S9 and Figure S9.
+
+```{mermaid}
+---
+config:
+  layout: dagre
+---
+flowchart TB
+ subgraph S9b_inputs["Inputs"]
+        s9bi1["OD flow matrix (Step 12)"]
+        s9bi2["Flood-risk road cells (Step 04)"]
+        s9bi3["Road network geometry"]
+        s9bi4["Zone centroids"]
+  end
+ subgraph S9b_process["Processing"]
+        s9bp1["Route each OD pair along shortest road path"]
+        s9bp2["Accumulate gravity-weighted flow on each road cell"]
+        s9bp3["Intersect flow grid with flood-risk mask"]
+        s9bp4["Rank cells by flow_load (highest = most critical)"]
+  end
+ subgraph S9b_outputs["Outputs for Summary 9"]
+        s9bo1["Table S9: top bottleneck cells ranked by flow load"]
+        s9bo2["Figure S9: bottleneck map coloured by flow intensity"]
+        s9bo3["Messages on critical infrastructure gaps"]
+  end
+    s9bi1 --> s9bp1
+    s9bi2 --> s9bp3
+    s9bi3 --> s9bp1
+    s9bi4 --> s9bp1
+    s9bp1 --> s9bp2
+    s9bp2 --> s9bp3
+    s9bp3 --> s9bp4
+    s9bp4 --> s9bo1 & s9bo2
+    s9bo1 --> s9bo3
+```
+
+**Table S9** lists the top 10 road bottleneck cells for each province,
+ranked by `flow_load` (a gravity-weighted sum of trips passing through
+the cell). Higher flow load means more people and goods depend on that
+specific flood-vulnerable road segment.
+
+> **Table S9. Road bottleneck ranking (top 10 cells)**
+> *Generated from `{AOI}_od_bottleneck_cells.csv` (one file per province).*
+
+::::{tab-set}
+:::{tab-item} Benguela
+:sync: key1
+
+| Rank | Longitude | Latitude | Flow Load |
+| ----: | ----: | ----: | ----: |
+| 1 | 13.7042 | -12.5208 | 61,365 |
+| 2 | 14.7208 | -13.1208 | 60,264 |
+| 3 | 13.6458 | -12.6458 | 53,130 |
+| 4 | 13.6708 | -12.6042 | 53,130 |
+| 5 | 13.6458 | -12.6625 | 53,130 |
+| 6 | 13.8042 | -12.2708 | 53,130 |
+| 7 | 13.7958 | -12.2958 | 53,130 |
+| 8 | 13.8208 | -12.8708 | 45,650 |
+| 9 | 13.9625 | -12.9542 | 45,650 |
+| 10 | 13.9875 | -12.9625 | 45,650 |
+
+:::
+
+:::{tab-item} Huambo
+:sync: key2
+
+| Rank | Longitude | Latitude | Flow Load |
+| ----: | ----: | ----: | ----: |
+| 1 | 15.7875 | -12.8208 | 370,099 |
+| 2 | 15.7875 | -12.8292 | 97,939 |
+| 3 | 15.7292 | -12.9375 | 97,939 |
+| 4 | 15.7958 | -12.7375 | 55,540 |
+| 5 | 15.7875 | -12.7708 | 55,540 |
+| 6 | 15.8042 | -12.5542 | 55,540 |
+| 7 | 15.7958 | -12.7458 | 55,540 |
+| 8 | 15.7958 | -12.7542 | 55,540 |
+| 9 | 15.8375 | -12.8458 | 49,511 |
+| 10 | 16.0708 | -12.9542 | 49,511 |
+
+:::
+
+:::{tab-item} Bie
+:sync: key3
+
+| Rank | Longitude | Latitude | Flow Load |
+| ----: | ----: | ----: | ----: |
+| 1 | 17.6708 | -12.4625 | 62,704 |
+| 2 | 17.5625 | -12.4792 | 55,259 |
+| 3 | 17.2375 | -12.5125 | 55,259 |
+| 4 | 16.5625 | -11.4958 | 46,207 |
+| 5 | 16.9458 | -12.3708 | 35,870 |
+| 6 | 16.5958 | -11.5708 | 31,944 |
+| 7 | 16.9042 | -12.2958 | 31,944 |
+| 8 | 16.9375 | -12.3708 | 31,944 |
+| 9 | 17.3125 | -12.1792 | 19,856 |
+| 10 | 17.4375 | -12.2542 | 19,856 |
+
+:::
+
+:::{tab-item} Moxico
+:sync: key4
+
+| Rank | Longitude | Latitude | Flow Load |
+| ----: | ----: | ----: | ----: |
+| 1 | 20.4125 | -11.8708 | 31,107 |
+| 2 | 19.8208 | -12.2958 | 31,107 |
+| 3 | 19.8292 | -12.2958 | 31,107 |
+| 4 | 20.3958 | -11.8792 | 31,107 |
+| 5 | 20.1375 | -11.6125 | 29,860 |
+| 6 | 19.7958 | -12.2958 | 29,860 |
+| 7 | 19.8792 | -12.1292 | 29,860 |
+| 8 | 19.9708 | -11.9458 | 29,860 |
+| 9 | 19.9958 | -11.9042 | 14,930 |
+| 10 | 20.1625 | -11.5708 | 14,930 |
+
+:::
+
+:::{tab-item} Moxico Leste
+:sync: key5
+
+| Rank | Longitude | Latitude | Flow Load |
+| ----: | ----: | ----: | ----: |
+| 1 | 22.0042 | -10.9208 | 53,870 |
+| 2 | 22.2458 | -11.2625 | 53,870 |
+| 3 | 22.2542 | -11.2708 | 53,870 |
+| 4 | 22.2292 | -11.2375 | 53,870 |
+| 5 | 22.2375 | -11.2542 | 53,870 |
+| 6 | 22.6625 | -11.8625 | 53,870 |
+| 7 | 22.6708 | -11.8708 | 53,870 |
+| 8 | 22.8125 | -12.0792 | 53,870 |
+| 9 | 22.7875 | -12.0458 | 53,870 |
+| 10 | 22.6458 | -11.8458 | 53,870 |
+
+:::
+::::
+
+**How to read the bottleneck ranking:**
+
+- **Top-ranked cells**: These are the single most critical road
+  segments for market connectivity. A flood event here would disrupt
+  the most OD pairs. Prioritize these for resilience investments
+  (drainage, elevation, rerouting).
+- **Clustered bottlenecks**: When several top cells cluster along
+  the same road segment, the entire corridor section needs attention.
+- **Flow load magnitude**: Compare across provinces to identify
+  corridor-wide priorities. Higher absolute values indicate busier
+  trade routes.
+
+**Figure S9** maps the bottleneck cells for each province, with marker
+size and colour indicating flow-load intensity. The background shows
+priority clusters (green) and admin boundaries (gray) for context.
+
+> **Figure S9. Road bottleneck map (flow load on flood-risk cells)**
+> *Generated from `{AOI}_od_bottleneck_cells.csv`. Markers sized and
+> coloured by flow load; top 3 cells annotated.*
+
+::::{tab-set}
+:::{tab-item} Benguela
+:sync: key1
+![S9-Benguela](../../outputs/figs/benguela_fig_s9_bottleneck_map.png)
+:::
+
+:::{tab-item} Huambo
+:sync: key2
+![S9-Huambo](../../outputs/figs/huambo_fig_s9_bottleneck_map.png)
+:::
+
+:::{tab-item} Bie
+:sync: key3
+![S9-Bie](../../outputs/figs/bie_fig_s9_bottleneck_map.png)
+:::
+
+:::{tab-item} Moxico
+:sync: key4
+![S9-Moxico](../../outputs/figs/moxico_fig_s9_bottleneck_map.png)
+:::
+
+:::{tab-item} Moxico Leste
+:sync: key5
+![S9-MoxicoLeste](../../outputs/figs/moxicoleste_fig_s9_bottleneck_map.png)
+:::
+::::
+
+---
+
+## 10. How to read this page alongside the rest of the book
 
 - This **Summary & results** page is a **corridor-wide dashboard**:
   it aligns indicators across provinces and views.
 - **Per-view details** (what each map, table, and indicator really means)
   live in:
-  - Chapters 1–8 (decision views),
-  - Chapters 9–15 (run anywhere, data, methods).
+  - Chapters 1–10 (decision views, including bottlenecks and impact simulation),
+  - Chapters 11–17 (run anywhere, data, methods, appendix).
 - The **underlying code** that produced every table and map here is fully
   documented in:
   - [How it works](12-how-it-works.md),
   - [All pipeline code](../references/all-code.md).
 
-Future runs for additional provinces will simply add rows to Tables S1–S5
-and additional curves/markers to Figures S2–S5, without changing the
-underlying methodology.
+Future runs for additional provinces will simply add rows to Tables S1–S9
+and additional tabs to Figures S1–S9, without changing the
+underlying methodology. The **corridor dashboard** (Step 15) automates
+this aggregation.

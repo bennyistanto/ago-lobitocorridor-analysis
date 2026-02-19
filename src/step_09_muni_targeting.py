@@ -74,7 +74,7 @@ from config import (
     muni_path_for, ADMIN2_THEMES,
     MUNI_TT_FIELD_MINUTES,
 )
-from utils_geo import cell_area_km2_latlon, write_gtiff_masked  # area used; write_gtiff available if you want to persist labels
+from utils_geo import cell_area_km2_latlon, write_gtiff_masked, open_and_align
 
 log = get_logger(__name__)
 
@@ -171,18 +171,7 @@ def _admin2_labels_raster(T: xr.DataArray, shp: Path) -> tuple[xr.DataArray, pd.
 
 def _open_align(path: Path, T: xr.DataArray, resampling: str | Resampling = "bilinear") -> xr.DataArray | None:
     """Open a raster and reproject to match T if needed; None if missing."""
-    if not path.exists():
-        return None
-    da = rxr.open_rasterio(path, masked=True).squeeze()
-    if (da.shape != T.shape) or (da.rio.transform() != T.rio.transform()) or (da.rio.crs != T.rio.crs):
-        # Allow either "bilinear"/"nearest" or Resampling enum
-        if isinstance(resampling, str):
-            try:
-                resampling = getattr(Resampling, resampling)
-            except AttributeError:
-                raise ValueError(f"Unknown resampling='{resampling}'")
-        da = da.rio.reproject_match(T, resampling=resampling)
-    return da
+    return open_and_align(path, T, resampling=resampling)
 
 
 def _groupby_sum_mean(labels: xr.DataArray, value_da: xr.DataArray, how: str = "sum") -> pd.DataFrame:
@@ -441,7 +430,107 @@ def main() -> None:
     out.to_csv(out_csv, index=False)
     log.info(f"Saved municipality targeting table → {Path(out_csv).name} | rows={len(out)}")
 
+    # --- Benefit incidence curve & equity index ----------------------------
+    _benefit_incidence(out, out_csv)
+
     log.info("Step 09 complete.")
+
+
+def _benefit_incidence(df: pd.DataFrame, base_csv: Path) -> None:
+    """
+    Compute a benefit incidence curve and a summary equity index.
+
+    Approach
+    --------
+    Municipalities are ranked from *poorest to richest* using ``poverty_rural``
+    (higher value = poorer). Cumulative share of population is plotted against
+    cumulative share of *benefit* (``pct_priority`` — the share of the
+    municipality that falls within the priority investment zone from Step 07).
+
+    If benefits are perfectly pro-poor, the curve sits above the 45-degree line.
+    We summarise this with a scalar **concentration index** (CI):
+      CI = 2 * integral(benefit_share - pop_share) d(rank)
+    CI > 0 → pro-poor; CI < 0 → pro-rich; CI = 0 → neutral.
+
+    Outputs (saved next to the ranking CSV):
+      - {AOI}_benefit_incidence.csv   (columns: rank, cum_pop_share, cum_benefit_share)
+      - {AOI}_equity_summary.csv      (concentration_index, interpretation)
+    """
+    need = {"poverty_rural", "pop_total", "pct_priority"}
+    if not need.issubset(df.columns):
+        missing = need - set(df.columns)
+        log.warning("Benefit incidence skipped (missing columns: %s)", missing)
+        return
+
+    bi = df[["ADM2CD_c", "NAM_2", "poverty_rural", "pop_total", "pct_priority"]].dropna().copy()
+    if bi.empty or bi["pop_total"].sum() <= 0:
+        log.warning("Benefit incidence skipped (no valid data).")
+        return
+
+    # Sort poorest-first (highest poverty_rural first)
+    bi.sort_values("poverty_rural", ascending=False, inplace=True)
+    bi.reset_index(drop=True, inplace=True)
+
+    # Weighted benefit = pop * pct_priority (proxy for beneficiary-pop in priority zone)
+    bi["benefit"] = bi["pop_total"] * bi["pct_priority"].clip(lower=0)
+
+    total_benefit = bi["benefit"].sum()
+
+    # Cumulative shares
+    bi["cum_pop"] = bi["pop_total"].cumsum() / bi["pop_total"].sum()
+
+    if total_benefit > 0:
+        bi["cum_benefit"] = bi["benefit"].cumsum() / total_benefit
+
+        # Concentration index (trapezoidal integration of gap above 45-deg line)
+        # CI = 2 * sum_i [ (cum_benefit_i - cum_pop_i) * delta_pop_share_i ]
+        pop_shares = bi["pop_total"] / bi["pop_total"].sum()
+        gap = bi["cum_benefit"].values - bi["cum_pop"].values
+        ci = float(2.0 * np.sum(gap * pop_shares.values))
+
+        if ci > 0.05:
+            interpretation = "pro-poor"
+        elif ci < -0.05:
+            interpretation = "pro-rich"
+        else:
+            interpretation = "roughly neutral"
+    else:
+        # No municipality has priority cells → CI is undefined
+        bi["cum_benefit"] = 0.0
+        ci = np.nan
+        interpretation = "no priority zones (CI undefined)"
+        log.warning(
+            "Total benefit is zero for this AOI — no municipalities have "
+            "priority cells. CI set to NaN."
+        )
+
+    # Save incidence curve
+    curve_out = base_csv.parent / base_csv.name.replace("priority_muni_rank", "benefit_incidence")
+    bi[["ADM2CD_c", "NAM_2", "poverty_rural", "cum_pop", "cum_benefit"]].rename(
+        columns={"cum_pop": "cum_pop_share", "cum_benefit": "cum_benefit_share"}
+    ).to_csv(curve_out, index=False)
+    log.info("Wrote benefit incidence curve -> %s", curve_out.name)
+
+    # Compute share of benefits going to the bottom 50% of population
+    # by interpolating the benefit incidence curve at cum_pop_share = 0.50
+    if total_benefit > 0:
+        cum_pop_arr = np.concatenate([[0.0], bi["cum_pop"].values])
+        cum_ben_arr = np.concatenate([[0.0], bi["cum_benefit"].values])
+        benefit_at_50 = float(np.interp(0.50, cum_pop_arr, cum_ben_arr))
+    else:
+        benefit_at_50 = np.nan
+
+    # Save equity summary
+    eq_out = base_csv.parent / base_csv.name.replace("priority_muni_rank", "equity_summary")
+    pd.DataFrame([{
+        "concentration_index": round(ci, 4),
+        "interpretation": interpretation,
+        "n_municipalities": len(bi),
+        "total_pop": float(bi["pop_total"].sum()),
+        "total_benefit_pop": float(bi["benefit"].sum()),
+        "benefit_share_bottom50": round(benefit_at_50, 4),
+    }]).to_csv(eq_out, index=False)
+    log.info("Equity index = %.4f (%s) -> %s", ci, interpretation, eq_out.name)
 
 
 if __name__ == "__main__":

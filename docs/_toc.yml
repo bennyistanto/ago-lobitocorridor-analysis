@@ -24,6 +24,10 @@ parts:
         title: Do the priorities align with poverty & food insecurity?
       - file: docs/chapters/08-movement
         title: How do places in the corridor interact?
+      - file: docs/chapters/08b-bottlenecks
+        title: Which road segments carry the most risk?
+      - file: docs/chapters/08c-impact-simulator
+        title: What if we upgrade a road?
 
   - caption: Run anywhere
     chapters:

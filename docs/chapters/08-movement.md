@@ -183,9 +183,13 @@ else:
 
 ## How to read the results (interpretation)
 
-* **Top OD pairs** highlight **corridors of interaction**: if they cross weak links (poor road class, known bottlenecks), they’re prime candidates for last-mile upgrades.
+* **Top OD pairs** highlight **corridors of interaction**: if they cross weak links (poor road class, known bottlenecks), they're prime candidates for last-mile upgrades.
 * **High-throughput municipalities** (inflow + outflow) act as **hubs**; improving access here can lift multiple OD pairs.
 * **Distance effect:** very short high flows may already be well served; medium-distance high flows often reveal **latent demand** suppressed by access.
+
+## What's next: bottleneck analysis
+
+Step 14 now also produces a **bottleneck overlay** that links these OD flows to physical road cells at flood risk. See **[Chapter 8b — Which road segments carry the most risk?](08b-bottlenecks.md)** for the ranking of critical road cells by flow load, and **[Chapter 8c — What if we upgrade a road?](08c-impact-simulator.md)** for simulating the impact of fixing those bottlenecks.
 
 ## Caveats
 
@@ -198,3 +202,5 @@ else:
 * OD **flows** → `outputs/tables/{AOI}_od_gravity.csv`
 * OD **zone attributes** → `outputs/tables/{AOI}_od_zone_attrs.csv`
 * OD **agents sample** (optional) → `outputs/tables/{AOI}_od_agents.csv`
+* OD **bottleneck cells** → `outputs/tables/{AOI}_od_bottleneck_cells.csv`
+* OD **bottleneck raster** → `outputs/rasters/{AOI}_od_bottleneck_risk.tif`

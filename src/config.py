@@ -446,7 +446,7 @@ PROJECTS_OTH = PATHS.VEC / f"ago_poi_{AOI}_projects_others_p.shp"
 
 RAIL_STATIONS = PATHS.VEC / f"ago_trs_{AOI}_stations_osm_p.shp"
 REFERENCE_POINTS = [
-    {"name": "caala_lp", "lon": 15.56, "lat": -12.85},
+    # {"name": "caala_lp", "lon": 15.56, "lat": -12.85},
     # {"name": "lobito_port", "lon": 13.559, "lat": -12.364},
 ]
 

@@ -261,6 +261,15 @@ def _cluster_stats(lbl_da: xr.DataArray,
     # flood depth (mean)
     flood_mean = mean_by_label(flood.values) if flood is not None else None
 
+    # --- Cropland-flood exposure overlay (Q1 + Q3) ---
+    # km² of cropland within the cluster that is also flood-exposed (RP100 > 0)
+    cropland_flood_km2 = None
+    if cropf is not None and flood is not None:
+        exposed = (np.nan_to_num(cropf.values, nan=0.0)
+                   * np.where(np.nan_to_num(flood.values, nan=0.0) > 0, 1.0, 0.0)
+                   * area)
+        cropland_flood_km2 = sum_by_label(exposed)
+
     # dominant municipality (mode of admin2 label)
     dom_admin = None
     if admin2_lbl is not None and admin2_lut is not None and not admin2_lut.empty:
@@ -293,6 +302,17 @@ def _cluster_stats(lbl_da: xr.DataArray,
         if risk_cnt is not None: row["risk_roadcells"] = int(risk_cnt[k])
         if flood_mean is not None: row["flood_depth_mean_m"] = float(flood_mean[k])
         if rwi_mean is not None: row["rwi_mean"] = float(rwi_mean[k])
+
+        # Cropland-flood exposure overlay
+        if cropland_flood_km2 is not None:
+            row["cropland_flood_exposed_km2"] = float(cropland_flood_km2[k])
+
+        # Benefit density / cost-effectiveness proxies
+        a_km2 = float(area_km2[k])
+        if pop_sum is not None and a_km2 > 0:
+            row["pop_density_per_km2"] = float(pop_sum[k]) / a_km2
+        if pop_sum is not None and risk_cnt is not None and risk_cnt[k] > 0:
+            row["pop_per_risk_roadcell"] = float(pop_sum[k]) / float(risk_cnt[k])
 
         # Shares of cluster area within travel-time thresholds (default from PARAMS.ISO_THRESH)
         iso_thresholds = tuple(getattr(PARAMS, "ISO_THRESH", (30, 60, 120)))
@@ -402,6 +422,8 @@ def main() -> None:
         "mean_travel_min", "drought_mean_0_1",
         "risk_roadcells", "flood_depth_mean_m",
         "rwi_mean",
+        "cropland_flood_exposed_km2",
+        "pop_density_per_km2", "pop_per_risk_roadcell",
         "centroid_lon", "centroid_lat",
         "ADM2CD_c", "NAM_1", "NAM_2",
     ] + [f"share_le_{int(thr)}m" for thr in iso_thresholds]
@@ -419,7 +441,8 @@ def main() -> None:
     for c in floats_1:
         df[c] = pd.to_numeric(df[c], errors="coerce").astype("float64").round(1)
 
-    floats_2 = ["area_km2", "cropland_km2", "rwi_mean"]
+    floats_2 = ["area_km2", "cropland_km2", "rwi_mean", "cropland_flood_exposed_km2",
+                 "pop_density_per_km2", "pop_per_risk_roadcell"]
     for c in floats_2:
         df[c] = pd.to_numeric(df[c], errors="coerce").astype("float64").round(2)
 

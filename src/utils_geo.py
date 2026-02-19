@@ -30,6 +30,48 @@ def open_template(path: str | rio.PathLike) -> xr.DataArray:
     return da
 
 
+def ensure_aligned(
+    da: xr.DataArray,
+    template: xr.DataArray,
+    resampling: str | _Resampling = "bilinear",
+) -> xr.DataArray:
+    """
+    Reproject-match ``da`` to ``template`` if grids differ (shape, transform, or CRS).
+
+    Returns the original DataArray unchanged if already aligned, avoiding an
+    unnecessary reproject. Accepts resampling as string or Resampling enum.
+    """
+    if da is None:
+        return None
+    try:
+        already = (
+            da.shape == template.shape
+            and da.rio.transform() == template.rio.transform()
+            and da.rio.crs == template.rio.crs
+        )
+    except Exception:
+        already = False
+    if already:
+        return da
+    return da.rio.reproject_match(template, resampling=_to_resampling(resampling))
+
+
+def open_and_align(
+    path: str | rio.PathLike,
+    template: xr.DataArray,
+    resampling: str | _Resampling = "bilinear",
+) -> xr.DataArray | None:
+    """
+    Open a raster file and align it to ``template``. Returns None if the file
+    does not exist.
+    """
+    p = Path(path)
+    if not p.exists():
+        return None
+    da = rxr.open_rasterio(p, masked=True).squeeze()
+    return ensure_aligned(da, template, resampling=resampling)
+
+
 def _to_resampling(resampling: str | _Resampling) -> _Resampling:
     """
     Convert a string like 'nearest'/'bilinear'/'max' to rasterio.enums.Resampling.

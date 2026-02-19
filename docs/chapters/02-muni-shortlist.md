@@ -34,6 +34,8 @@ Aggregate the priority surface to **Admin2** and build a **composite score** per
 ## Outputs
 
 - `outputs/tables/{AOI}_priority_muni_rank.csv` — one row per Admin2 (composite score, population, and merged poverty & food-insecurity indicators)
+- `outputs/tables/{AOI}_benefit_incidence.csv` — cumulative benefit share vs. cumulative population share, ranked poorest to richest
+- `outputs/tables/{AOI}_equity_summary.csv` — concentration index and interpretation (pro-poor, pro-rich, or neutral)
 - `outputs/tables/{AOI}_priority_scenarios_summary.csv` — stability across scenarios (optional)
 
 ## How to run (analyst)
@@ -81,13 +83,52 @@ else:
     print("No rural-poverty column found in rank; skipping correlation.")
 ```
 
+**This cell loads and displays the benefit incidence curve and equity concentration index (if available).**
+
+```{code-cell} ipython3
+eq_path = OUT / f"{AOI}_equity_summary.csv"
+bi_path = OUT / f"{AOI}_benefit_incidence.csv"
+
+if eq_path.exists():
+    eq = pd.read_csv(eq_path)
+    ci = eq["concentration_index"].iloc[0]
+    interp = eq["interpretation"].iloc[0]
+    print(f"Concentration Index = {ci:.4f}  ({interp})")
+    print("  CI > 0 = pro-poor | CI < 0 = pro-rich | CI ≈ 0 = neutral")
+else:
+    print("Equity summary not found; run Step 09.")
+```
+
+**This cell plots the benefit incidence curve (for decision-maker presentations).**
+
+```{code-cell} ipython3
+import matplotlib.pyplot as plt
+
+if bi_path.exists():
+    bi = pd.read_csv(bi_path)
+    plt.figure()
+    plt.plot(bi["cum_pop_share"], bi["cum_benefit_share"], "b-o", ms=5, label="Benefit incidence")
+    plt.plot([0, 1], [0, 1], "k--", alpha=0.5, label="Perfect equality")
+    plt.xlabel("Cumulative population share (poorest → richest)")
+    plt.ylabel("Cumulative benefit share")
+    plt.title(f"{AOI}: Benefit incidence curve")
+    plt.legend()
+    plt.show()
+else:
+    print("Benefit incidence table not found; run Step 09.")
+```
+
 ## How to read the results
 
 - **Top-ranked** Admin2 should either match field expectations or spark a review.
-- **Equity lens:** positive correlation with rural poverty indicates we’re reaching poorer municipalities; negative or near-zero suggests a retune (Chapter 4).
-- If equity correlation is weak, try the ‘**drop NTL/VEG**’ scenario or raise the **cropland threshold**; re-run Step 10 and refresh this page.
+- **Equity lens:** positive correlation with rural poverty indicates we're reaching poorer municipalities; negative or near-zero suggests a retune (Chapter 4).
+- **Concentration index > 0** means benefits flow disproportionately to *poorer* municipalities (pro-poor). This is usually the desired outcome for poverty-focused investments.
+- **Concentration index < 0** means benefits flow toward *less-poor* municipalities. Consider raising `W_POV` or `W_FOOD` weights and re-running.
+- If the incidence curve lies **above** the 45-degree line, benefits are pro-poor.
+- If equity correlation is weak, try the '**drop NTL/VEG**' scenario or raise the **cropland threshold**; re-run Step 10 and refresh this page.
 
 ## Caveats
 
 - Poverty/food-insecurity are **survey-modelled**; small-area noise is possible.
 - Scores reflect **current weights**—scenario stability matters for confidence.
+- The concentration index is sensitive to the number of municipalities; compare within the same province, not across provinces.

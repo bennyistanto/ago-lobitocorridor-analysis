@@ -458,7 +458,152 @@ def main() -> None:
     agents.to_csv(out_agents, index=False)
     log.info(f"Wrote {out_agents.name} (N={len(agents)})")
 
+    # 9) OD-bottleneck overlay: rank flood-risk road cells by flow load
+    _od_bottleneck_overlay(F, cent, D, df_z)
+
     log.info("Step 14 complete.")
+
+
+def _od_bottleneck_overlay(
+    F: np.ndarray,
+    cent: pd.DataFrame,
+    D: np.ndarray,
+    df_z: pd.DataFrame,
+) -> None:
+    """
+    Link OD flows to flood-risk road cells (Step 04 output).
+
+    Approach (fast heuristic, no full routing)
+    -------------------------------------------
+    For each OD pair (i→j) with flow > 0, draw the straight-line segment between
+    zone centroids and identify which 1-km grid cells are intercepted. Accumulate
+    total flow onto each cell. Then intersect with the road-risk mask to rank
+    bottleneck cells by total OD flow they would block if disrupted.
+
+    Outputs
+    -------
+    - {AOI}_od_bottleneck_cells.csv  (x, y, flow_load, is_risk, risk_rank)
+    - {AOI}_od_bottleneck_risk.tif   (flow_load on risk cells only)
+    """
+    from rasterio.transform import rowcol
+
+    # Check for required inputs
+    risk_fp = PATHS.OUT_R / f"{AOI}_roads_flood_risk_cells_1km.tif"
+    if not Path(risk_fp).exists():
+        log.warning("Road-risk raster not found (%s); skipping OD-bottleneck overlay.", risk_fp.name)
+        return
+
+    T = open_template(PARAMS.TARGET_GRID)
+    risk = rxr.open_rasterio(risk_fp, masked=True).squeeze()
+    if (risk.shape != T.shape) or (risk.rio.transform() != T.rio.transform()):
+        risk = risk.rio.reproject_match(T, resampling=RESAMPLE("nearest"))
+
+    tf = T.rio.transform()
+    ny, nx = T.shape
+
+    # Accumulate flow per grid cell using Bresenham-like traversal of OD segments
+    flow_grid = np.zeros((ny, nx), dtype=np.float64)
+    n_zones = len(cent)
+    lons = cent["lon"].values
+    lats = cent["lat"].values
+
+    # Only process significant flows (top 90% of total flow for speed)
+    flat_F = F.ravel()
+    flat_D = D.ravel()
+    oi_all = np.repeat(np.arange(n_zones), n_zones)
+    dj_all = np.tile(np.arange(n_zones), n_zones)
+    mask = (flat_F > 0) & (oi_all != dj_all)
+    oi_sel = oi_all[mask]
+    dj_sel = dj_all[mask]
+    fl_sel = flat_F[mask]
+
+    # Sort by flow descending; keep enough to cover 90% of total flow
+    order = np.argsort(-fl_sel)
+    cumflow = np.cumsum(fl_sel[order])
+    total = cumflow[-1] if len(cumflow) > 0 else 0
+    if total <= 0:
+        log.warning("No OD flows to overlay; skipping bottleneck analysis.")
+        return
+    cutoff_idx = int(np.searchsorted(cumflow, 0.90 * total)) + 1
+    order = order[:cutoff_idx]
+
+    log.info("OD-bottleneck: processing %d OD pairs (90%% of flow)...", len(order))
+
+    for idx in order:
+        oi = oi_sel[idx]
+        dj = dj_sel[idx]
+        flow = fl_sel[idx]
+
+        # Rasterize the line from centroid_i to centroid_j (Bresenham)
+        r0, c0 = rowcol(tf, lons[oi], lats[oi])
+        r1, c1 = rowcol(tf, lons[dj], lats[dj])
+
+        # Clip to grid bounds
+        if not (0 <= r0 < ny and 0 <= c0 < nx and 0 <= r1 < ny and 0 <= c1 < nx):
+            continue
+
+        # Simple DDA line rasterization
+        cells = _bresenham(r0, c0, r1, c1, ny, nx)
+        for r, c in cells:
+            flow_grid[r, c] += flow
+
+    # Intersect with risk mask
+    risk_mask = np.nan_to_num(risk.values, nan=0.0) > 0.5
+    risk_flow = np.where(risk_mask, flow_grid, 0.0)
+
+    # Build output table of risk cells with their flow load
+    rr, cc = np.where(risk_mask & (flow_grid > 0))
+    if rr.size == 0:
+        log.info("No OD flow intersects risk cells; bottleneck table empty.")
+        return
+
+    rows = []
+    for i in range(len(rr)):
+        lon = float(T.x.values[cc[i]])
+        lat = float(T.y.values[rr[i]])
+        rows.append({
+            "row": int(rr[i]), "col": int(cc[i]),
+            "lon": lon, "lat": lat,
+            "flow_load": float(flow_grid[rr[i], cc[i]]),
+        })
+
+    btl = pd.DataFrame(rows).sort_values("flow_load", ascending=False).reset_index(drop=True)
+    btl["risk_rank"] = range(1, len(btl) + 1)
+
+    out_csv = out_t("od_bottleneck_cells")
+    btl.to_csv(out_csv, index=False)
+    log.info("Wrote OD-bottleneck table -> %s (%d risk cells with flow)", out_csv.name, len(btl))
+
+    # Write raster (flow load on risk cells only)
+    from utils_geo import write_gtiff
+    risk_flow_da = xr.DataArray(risk_flow.astype("float32"), coords=T.coords, dims=T.dims)
+    out_tif = out_r("od_bottleneck_risk")
+    write_gtiff(risk_flow_da, out_tif, like=T, nodata=0)
+    log.info("Wrote %s", Path(out_tif).name)
+
+
+def _bresenham(r0: int, c0: int, r1: int, c1: int, ny: int, nx: int) -> list[tuple[int, int]]:
+    """Bresenham's line algorithm returning list of (row, col) within grid bounds."""
+    cells = []
+    dr = abs(r1 - r0)
+    dc = abs(c1 - c0)
+    sr = 1 if r1 > r0 else -1
+    sc = 1 if c1 > c0 else -1
+    err = dr - dc
+    r, c = r0, c0
+    while True:
+        if 0 <= r < ny and 0 <= c < nx:
+            cells.append((r, c))
+        if r == r1 and c == c1:
+            break
+        e2 = 2 * err
+        if e2 > -dc:
+            err -= dc
+            r += sr
+        if e2 < dr:
+            err += dr
+            c += sc
+    return cells
 
 
 if __name__ == "__main__":
