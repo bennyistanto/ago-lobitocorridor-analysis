@@ -45,6 +45,8 @@ parts:
         title: Provenance & reproducibility
       - file: docs/chapters/15-appendix
         title: Appendix (for analysts)
+      - file: docs/chapters/16-handouts
+        title: Visual handouts (print / leave-behind)
 
   - caption: Summary & results
     chapters:
