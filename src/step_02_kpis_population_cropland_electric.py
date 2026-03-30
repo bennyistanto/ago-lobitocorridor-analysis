@@ -57,6 +57,28 @@ def main() -> None:
     cl_frac = open_template(out_r("cropland_fraction_1km"))   # fractional 0..1
     elg     = open_template(out_r("elec_grid_1km"))
 
+    # --- v2 optional layers (Step 00 may not have produced them) ---
+    def _try_open(name):
+        p = out_r(name)
+        try:
+            return open_template(p)
+        except Exception:
+            return None
+
+    tt_health  = _try_open("tt_health_motorised_1km")
+    bldg_count = _try_open("building_count_1km")
+    dre_demand = _try_open("dre_demand_density_1km")
+    drought    = _try_open("drought_1km")
+    gsl        = _try_open("gsl_median_1km")
+
+    v2_layers = {
+        "tt_health": tt_health, "bldg_count": bldg_count,
+        "dre_demand": dre_demand, "drought": drought, "gsl": gsl,
+    }
+    v2_present = [k for k, v in v2_layers.items() if v is not None]
+    if v2_present:
+        log.info("v2 layers available for KPIs: %s", ", ".join(v2_present))
+
     # After loading `elg`
     uniq, counts = np.unique(elg.values[~np.isnan(elg.values)], return_counts=True)
     log.info("Electrification grid value counts (non-NaN): %s", dict(zip(uniq.astype(int), counts.tolist())))
@@ -143,6 +165,27 @@ def main() -> None:
         # Shared denominators
         no_elec_flag = (elg_total == 0.0)
 
+        # --- v2 KPI columns ---
+        row_v2 = {}
+        if tt_health is not None and cells_within > 0:
+            # Health coverage: % of cells within isochrone that are ≤60 min from health facility
+            tt_h_vals = np.nan_to_num(tt_health.values, nan=9999.0)
+            health_covered = float(np.sum(inside & (tt_h_vals <= 60.0)))
+            row_v2["health_cover_60min_pct"] = (health_covered / cells_within * 100.0)
+            row_v2["tt_health_mean_within"] = float(np.nanmean(tt_h_vals[inside]))
+        if bldg_count is not None:
+            row_v2["building_count_within"] = float(np.nansum(
+                np.where(inside, np.nan_to_num(bldg_count.values, nan=0), 0)))
+        if dre_demand is not None:
+            row_v2["dre_demand_within"] = float(np.nansum(
+                np.where(inside, np.nan_to_num(dre_demand.values, nan=0), 0)))
+        if drought is not None and cells_within > 0:
+            drt_vals = drought.values
+            row_v2["drought_mean_within"] = float(np.nanmean(drt_vals[inside]))
+        if gsl is not None and cells_within > 0:
+            gsl_vals = gsl.values
+            row_v2["gsl_mean_within"] = float(np.nanmean(gsl_vals[inside]))
+
         # Append row (keep both current + legacy if you still want them)
         rows.append({
             "aoi": AOI,
@@ -157,6 +200,9 @@ def main() -> None:
             "cropland_pct": (cl_km2_sum / cl_km2_tot * 100.0) if cl_km2_tot > 0 else np.nan,
             "electrified_cells": elg_sum,
             "electrified_pct": (elg_sum / elg_total * 100.0) if elg_total > 0 else np.nan,
+
+            # v2 KPIs
+            **row_v2,
 
             # context
             "cell_area_km2": float(cell_km2_log),

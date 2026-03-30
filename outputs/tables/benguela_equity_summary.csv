@@ -1,2 +1,2 @@
-concentration_index,interpretation,n_municipalities,total_pop,total_benefit_pop
-0.5961,pro-poor,10,3271805.1817866955,39365.59842355878
+concentration_index,interpretation,n_municipalities,total_pop,total_benefit_pop,benefit_share_bottom50
+0.1698,pro-poor,10,3271805.1817866955,105814.27168135595,0.5428

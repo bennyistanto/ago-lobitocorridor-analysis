@@ -1,5 +1,7 @@
-cluster_id,area_km2,pop,cropland_km2,pct_electrified,pct_rural,mean_travel_min,drought_mean_0_1,risk_roadcells,flood_depth_mean_m,rwi_mean,cropland_flood_exposed_km2,pop_density_per_km2,pop_per_risk_roadcell,centroid_lon,centroid_lat,ADM2CD_c,NAM_1,NAM_2,share_le_30m,share_le_60m,share_le_120m,share_le_240m
-2,274.08,,136.25,0.083,0.44,20.8,,47,,,130.68,,,14.27965,-13.10424,AGO002008,Benguela,Cubal,0.78,0.994,1.0,1.0
-1,103.13,,56.83,0.114,0.415,21.6,,18,131.9,,56.83,,,14.57476,-13.01548,AGO002009,Benguela,Ganda,0.748,0.984,1.0,1.0
-4,27.65,,17.22,0.0,0.242,53.0,0.08,9,,,16.91,,,14.4678,-13.21907,AGO002008,Benguela,Cubal,0.0,0.879,1.0,1.0
-3,26.83,3134.0,6.9,0.062,0.406,29.9,,1,116.3,,6.9,116.83,3134.38,14.11458,-13.04036,AGO002005,Benguela,Caimbambo,0.5,1.0,1.0,1.0
+cluster_id,area_km2,pop,cropland_km2,pct_electrified,pct_rural,mean_travel_min,drought_mean_0_1,risk_roadcells,flood_depth_mean_m,rwi_mean,cropland_flood_exposed_km2,pop_density_per_km2,pop_per_risk_roadcell,tt_health_mean_min,tt_edu_mean_min,building_density_mean,dre_demand_total,gsl_median_days,spei12_events_mean,centroid_lon,centroid_lat,ADM2CD_c,NAM_1,NAM_2,share_le_30m,share_le_60m,share_le_120m,share_le_240m
+3,473.55,,386.98,0.051,0.457,26.0,0.174,64,,,374.02,,,15.5,7.6,0.0,13313.8,,17.41,14.28319,-13.11042,AGO002008,Benguela,Cubal,0.66,0.979,1.0,1.0
+4,90.55,,76.26,0.0,0.398,29.1,0.204,19,143.4,,76.26,,,14.4,13.2,0.0,1114.1,260.1,20.44,14.54059,-13.01759,AGO002009,Benguela,Ganda,0.528,0.972,1.0,1.0
+1,77.32,,20.43,0.728,0.478,,0.191,47,157.6,,20.43,,,,,0.08,2300.9,,19.05,13.54085,-12.42527,AGO002006,Benguela,Catumbela,0.978,0.978,0.978,0.978
+6,53.61,,45.99,0.0,0.391,57.5,0.178,12,,,43.39,,,16.6,12.2,0.0,108.2,253.2,17.75,14.47643,-13.22943,AGO002008,Benguela,Cubal,0.0,0.672,1.0,1.0
+2,45.35,283593.0,11.71,1.0,0.463,6.1,0.189,32,92.6,0.56,11.71,6253.34,8862.28,1.6,1.1,0.12,71698.4,,18.87,13.42207,-12.60432,AGO002003,Benguela,Benguela,1.0,1.0,1.0,1.0
+5,28.51,41043.0,25.01,0.412,0.353,7.8,0.215,3,123.0,,25.01,1439.6,13680.94,5.3,3.9,0.02,9254.5,249.5,21.5,14.63456,-12.99559,AGO002009,Benguela,Ganda,1.0,1.0,1.0,1.0

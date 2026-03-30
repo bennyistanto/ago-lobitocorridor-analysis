@@ -53,12 +53,13 @@ import pandas as pd
 import rioxarray as rxr
 
 from config import (
-    AOI, PATHS, PARAMS,
+    AOI, PATHS, PARAMS, Params, TransformSpec,
     out_r, get_logger,
     PRIORITY_TIF, PRIORITY_TOP10_TIF,
     OPTIONAL_GRID_OVERLAYS,
     RESAMPLE_DEFAULT_CONT, RESAMPLE_DEFAULT_CAT,
     WRITE_JSON_SIDECARS, write_geo_sidecar,
+    PRESETS, ACTIVE_PRESET, preset_to_params,
 )
 # Safe fallbacks if these constants aren’t present in config
 try:
@@ -75,6 +76,10 @@ from utils_geo import (
     select_top_mask_nan as select_top,
     remove_small_clusters as prune_clusters,
     ensure_aligned, open_and_align,
+    # v2 analytical functions
+    fuzzy_transform,
+    geometric_aggregate,
+    getis_ord_gi_star,
 )
 
 log = get_logger(__name__)
@@ -184,7 +189,7 @@ def _safe_minmax_scale(da: xr.DataArray, lo: float, hi: float, invert: bool = Fa
     return out
 
 
-def _normalize_components(T, tt_da, pop_da, veg_da, ntl_da, drt_da, overlays: Dict[str, xr.DataArray]) -> Dict[str, xr.DataArray]:
+def _normalize_components(T, tt_da, pop_da, veg_da, ntl_da, drt_da, overlays: Dict[str, xr.DataArray], params: Params = PARAMS) -> Dict[str, xr.DataArray]:
     """
     Produce normalized [0,1] components: ACC, POP, VEG, NTL, DRT (+ optional overlays).
     - ACCESS: lower travel is better → invert after min-max (0..max_iso)
@@ -201,7 +206,7 @@ def _normalize_components(T, tt_da, pop_da, veg_da, ntl_da, drt_da, overlays: Di
     comps = {}
 
     # Access
-    max_iso = float(max(PARAMS.ISO_THRESH))  # e.g., 240
+    max_iso = float(max(params.ISO_THRESH))  # e.g., 240
     comps["ACC"] = _safe_minmax_scale(tt_da, 0.0, max_iso, invert=True)
 
     # Population (95th pct robust scaling)
@@ -216,7 +221,7 @@ def _normalize_components(T, tt_da, pop_da, veg_da, ntl_da, drt_da, overlays: Di
 
     # Vegetation
     if veg_da is not None:
-        veg_min = float(PARAMS.VEG_MIN)
+        veg_min = float(params.VEG_MIN)
         # map < VEG_MIN to 0; else linear to 1
         vv = veg_da.clip(veg_min, 1.0)
         comps["VEG"] = _safe_minmax_scale(vv, veg_min, 1.0, invert=False)
@@ -225,7 +230,7 @@ def _normalize_components(T, tt_da, pop_da, veg_da, ntl_da, drt_da, overlays: Di
 
     # Night Lights
     if ntl_da is not None:
-        ntl_cap = float(PARAMS.NTL_CAP)
+        ntl_cap = float(params.NTL_CAP)
         nn = ntl_da.clip(0.0, ntl_cap)
         comps["NTL"] = _safe_minmax_scale(nn, 0.0, ntl_cap, invert=False)
     else:
@@ -272,42 +277,42 @@ def _normalize_components(T, tt_da, pop_da, veg_da, ntl_da, drt_da, overlays: Di
     return comps
 
 
-def _combine_with_weights(comps: Dict[str, xr.DataArray]) -> tuple[xr.DataArray, Dict[str, float]]:
+def _combine_with_weights(comps: Dict[str, xr.DataArray], params: Params = PARAMS) -> tuple[xr.DataArray, Dict[str, float]]:
     """
     Combine enabled components with normalized weights.
 
-    - Core toggles follow PARAMS.USE_COMPONENTS (ACC, POP, VEG, NTL, DRT).
+    - Core toggles follow params.USE_COMPONENTS (ACC, POP, VEG, NTL, DRT).
     - Optional overlays are included only if present in `comps`:
       POV (poverty), FOOD (food insecurity), MTT (muni travel time), RWI (Meta).
-    - Weights are taken from PARAMS and re-normalized over the actually-available set.
+    - Weights are taken from params and re-normalized over the actually-available set.
     Returns:
       (score_da_clipped_0_1, weights_normalized_dict)
     """
     # Build available components + weights
     weights: Dict[str, float] = {}
 
-    use_acc, use_pop, use_veg, use_ntl, use_drt = PARAMS.USE_COMPONENTS
+    use_acc, use_pop, use_veg, use_ntl, use_drt = params.USE_COMPONENTS
 
     if use_acc and (comps.get("ACC") is not None):
-        weights["ACC"] = float(PARAMS.W_ACC)
+        weights["ACC"] = float(params.W_ACC)
     if use_pop and (comps.get("POP") is not None):
-        weights["POP"] = float(PARAMS.W_POP)
+        weights["POP"] = float(params.W_POP)
     if use_veg and (comps.get("VEG") is not None):
-        weights["VEG"] = float(PARAMS.W_VEG)
+        weights["VEG"] = float(params.W_VEG)
     if use_ntl and (comps.get("NTL") is not None):
-        weights["NTL"] = float(PARAMS.W_NTL)
+        weights["NTL"] = float(params.W_NTL)
     if use_drt and (comps.get("DRT") is not None):
-        weights["DRT"] = float(PARAMS.W_DRT)
+        weights["DRT"] = float(params.W_DRT)
 
     # Optional municipal overlays — include only if present
     if "POV" in comps:
-        weights["POV"] = float(getattr(PARAMS, "W_POV", 0.0))
+        weights["POV"] = float(getattr(params, "W_POV", 0.0))
     if "FOOD" in comps:
-        weights["FOOD"] = float(getattr(PARAMS, "W_FOOD", 0.0))
+        weights["FOOD"] = float(getattr(params, "W_FOOD", 0.0))
     if "MTT" in comps:
-        weights["MTT"] = float(getattr(PARAMS, "W_MTT", 0.0))
+        weights["MTT"] = float(getattr(params, "W_MTT", 0.0))
     if "RWI" in comps:
-        weights["RWI"] = float(getattr(PARAMS, "W_RWI", 0.0))
+        weights["RWI"] = float(getattr(params, "W_RWI", 0.0))
 
     # Keep only positive weights and normalize
     weights = {k: v for k, v in weights.items() if v is not None and v > 0}
@@ -329,17 +334,17 @@ def _combine_with_weights(comps: Dict[str, xr.DataArray]) -> tuple[xr.DataArray,
     return score.clip(0.0, 1.0), weights_norm
 
 
-def _apply_masks(score: xr.DataArray, T, rural_da, cropfrac_da) -> xr.DataArray:
+def _apply_masks(score: xr.DataArray, T, rural_da, cropfrac_da, params: Params = PARAMS) -> xr.DataArray:
     """
     Apply rural-only and minimum cropland fraction masks if requested in config.
     """
     out = score.copy()
-    if bool(PARAMS.MASK_REQUIRE_RURAL):
+    if bool(params.MASK_REQUIRE_RURAL):
         if rural_da is None:
             log.warning("MASK_REQUIRE_RURAL=True but no rural raster found; skipping this mask.")
         else:
             out = out.where(rural_da > 0.5)
-    min_cf = float(PARAMS.MASK_MIN_CROPLAND or 0.0)
+    min_cf = float(params.MASK_MIN_CROPLAND or 0.0)
     if min_cf > 0.0:
         if cropfrac_da is None:
             log.warning("MASK_MIN_CROPLAND>0 but no cropland_fraction raster found; skipping this mask.")
@@ -348,12 +353,102 @@ def _apply_masks(score: xr.DataArray, T, rural_da, cropfrac_da) -> xr.DataArray:
     return out
 
 
-def _smooth_if_needed(score: xr.DataArray) -> xr.DataArray:
-    r = int(PARAMS.SMOOTH_RADIUS or 0)
+def _smooth_if_needed(score: xr.DataArray, params: Params = PARAMS) -> xr.DataArray:
+    r = int(params.SMOOTH_RADIUS or 0)
     if r <= 0:
         return score
     return focal_mean(score, radius=r)
 
+
+
+def _add_v2_components(
+    comps: Dict[str, xr.DataArray],
+    tt_health_da, tt_edu_da, bldg_dens_da, dre_demand_da,
+    transforms: dict | None,
+    params: Params,
+) -> None:
+    """Add v2 component layers to the comps dict.
+
+    For layers WITHOUT a custom TransformSpec, apply simple linear
+    normalisation.  When a preset specifies a TransformSpec for the
+    alias, the raw (un-normalised) value is stored — the main loop
+    applies the fuzzy transform later.
+    """
+    # Travel time to health — if no custom transform, linear invert
+    if tt_health_da is not None:
+        if transforms and "TT_HEALTH" in transforms:
+            comps["TT_HEALTH"] = tt_health_da  # raw — will be transformed later
+        else:
+            max_tt = float(max(params.ISO_THRESH))
+            comps["TT_HEALTH"] = _safe_minmax_scale(tt_health_da, 0.0, max_tt, invert=True)
+
+    # Travel time to education — same pattern
+    if tt_edu_da is not None:
+        if transforms and "TT_EDUCATION" in transforms:
+            comps["TT_EDUCATION"] = tt_edu_da
+        else:
+            max_tt = float(max(params.ISO_THRESH))
+            comps["TT_EDUCATION"] = _safe_minmax_scale(tt_edu_da, 0.0, max_tt, invert=True)
+
+    # Building density — log scale or raw for transform
+    if bldg_dens_da is not None:
+        if transforms and "BUILDING_DENSITY" in transforms:
+            comps["BUILDING_DENSITY"] = bldg_dens_da
+        else:
+            v = bldg_dens_da.values.astype("float32")
+            v[v < 0] = np.nan
+            p95 = np.nanpercentile(v, 95.0) if np.any(np.isfinite(v)) else 1.0
+            p95 = p95 if np.isfinite(p95) and p95 > 0 else 1.0
+            comps["BUILDING_DENSITY"] = _safe_minmax_scale(bldg_dens_da, 0.0, float(p95))
+
+    # DRE demand — linear scale or raw for transform
+    if dre_demand_da is not None:
+        if transforms and "DRE_DEMAND" in transforms:
+            comps["DRE_DEMAND"] = dre_demand_da
+        else:
+            v = dre_demand_da.values.astype("float32")
+            v[v < 0] = np.nan
+            p95 = np.nanpercentile(v, 95.0) if np.any(np.isfinite(v)) else 1.0
+            p95 = p95 if np.isfinite(p95) and p95 > 0 else 1.0
+            comps["DRE_DEMAND"] = _safe_minmax_scale(dre_demand_da, 0.0, float(p95))
+
+
+def _build_weight_dict(comps: Dict[str, xr.DataArray], params: Params) -> Dict[str, float]:
+    """Build a complete weight dictionary for all available components."""
+    weights: Dict[str, float] = {}
+
+    use_acc, use_pop, use_veg, use_ntl, use_drt = params.USE_COMPONENTS
+
+    if use_acc and comps.get("ACC") is not None:
+        weights["ACC"] = float(params.W_ACC)
+    if use_pop and comps.get("POP") is not None:
+        weights["POP"] = float(params.W_POP)
+    if use_veg and comps.get("VEG") is not None:
+        weights["VEG"] = float(params.W_VEG)
+    if use_ntl and comps.get("NTL") is not None:
+        weights["NTL"] = float(params.W_NTL)
+    if use_drt and comps.get("DRT") is not None:
+        weights["DRT"] = float(params.W_DRT)
+
+    # Optional overlays
+    for alias, attr in [("POV", "W_POV"), ("FOOD", "W_FOOD"),
+                        ("MTT", "W_MTT"), ("RWI", "W_RWI")]:
+        if alias in comps and comps[alias] is not None:
+            w = float(getattr(params, attr, 0.0))
+            if w > 0:
+                weights[alias] = w
+
+    # v2 components
+    for alias, attr in [("TT_HEALTH", "W_TT_HEALTH"),
+                        ("TT_EDUCATION", "W_TT_EDUCATION"),
+                        ("BUILDING_DENSITY", "W_BUILDING_DENSITY"),
+                        ("DRE_DEMAND", "W_DRE_DEMAND")]:
+        if alias in comps and comps[alias] is not None:
+            w = float(getattr(params, attr, 0.0))
+            if w > 0:
+                weights[alias] = w
+
+    return {k: v for k, v in weights.items() if v > 0}
 
 
 def _admin2_rank_path():
@@ -364,21 +459,35 @@ def _admin2_rank_path():
 
 # --------------------------------- Main --------------------------------------
 
-def main() -> None:
+def main(params: Params | None = None) -> None:
     """
     Compute a tunable priority surface with masks, smoothing, and Top-X selection.
     Produces:
       - PRIORITY_TIF (continuous 0..1)
       - PRIORITY_TOP10_TIF (binary mask, even if Top-km² is used)
+
+    Parameters
+    ----------
+    params : Params | None
+        Override the global PARAMS.  When *None*, resolved from the active
+        thematic preset (``ACTIVE_PRESET`` env var, default ``"balanced"``).
     """
+    if params is None:
+        preset = PRESETS.get(ACTIVE_PRESET, PRESETS["balanced"])
+        params = preset_to_params(preset)
+        log.info("Preset: %s — %s", preset.name, preset.description)
+    else:
+        preset = PRESETS.get(ACTIVE_PRESET, PRESETS["balanced"])
+
     # Template (1-km travel grid) for shape/transform/CRS
-    T = open_template(PARAMS.TARGET_GRID)
+    T = open_template(params.TARGET_GRID)
     tf = T.rio.transform()
     resx, resy = abs(tf.a), abs(tf.e)
-    log.info(f"Target grid | CRS={T.rio.crs} | size={T.rio.height}x{T.rio.width} | cell={resx:.4f}x{resy:.4f}")
+    log.info("Target grid | CRS=%s | size=%dx%d | cell=%.4f x %.4f",
+             T.rio.crs, T.rio.height, T.rio.width, resx, resy)
 
-    # Load components (Step 00 outputs) — use AOI-prefixed names
-    tt_da   = xr.open_dataarray(PARAMS.TARGET_GRID)  # travel time (minutes)
+    # ── Load all component layers ────────────────────────────────────
+    tt_da   = xr.open_dataarray(params.TARGET_GRID)  # travel time (minutes)
     pop_da  = open_and_align(out_r("pop_1km"), T, resampling=RESAMPLE_DEFAULT_CONT)
     veg_da  = open_and_align(out_r("veg_1km"), T, resampling=RESAMPLE_DEFAULT_CONT)
     ntl_da  = open_and_align(out_r("ntl_1km"), T, resampling=RESAMPLE_DEFAULT_CONT)
@@ -386,70 +495,147 @@ def main() -> None:
     crop_da = open_and_align(out_r("cropland_fraction_1km"), T, resampling=RESAMPLE_DEFAULT_CONT)
     rur_da  = open_and_align(out_r("rural_1km"), T, resampling=RESAMPLE_DEFAULT_CAT)
 
+    # v2 layers (optional — loaded only if Step 00 produced them)
+    tt_health_da   = open_and_align(out_r("tt_health_motorised_1km"), T, resampling=RESAMPLE_DEFAULT_CONT)
+    tt_edu_da      = open_and_align(out_r("tt_education_motorised_1km"), T, resampling=RESAMPLE_DEFAULT_CONT)
+    bldg_dens_da   = open_and_align(out_r("building_density_1km"), T, resampling=RESAMPLE_DEFAULT_CONT)
+    dre_demand_da  = open_and_align(out_r("dre_demand_density_1km"), T, resampling=RESAMPLE_DEFAULT_CONT)
+
     # Optional overlays (Step 06 + Step 00 RWI)
     overlays = _find_optional_overlays(T)
 
-    # Normalize components
-    comps = _normalize_components(T, tt_da, pop_da, veg_da, ntl_da, drt_da, overlays)
+    # ── Determine methodology from preset ────────────────────────────
+    aggregation = getattr(preset, "AGGREGATION", "additive")
+    selection_method = getattr(preset, "SELECTION_METHOD", "percentile")
+    transforms = getattr(preset, "TRANSFORMS", None)
+    knockout_rules = getattr(preset, "KNOCKOUT_RULES", None)
+    hotspot_sig = getattr(preset, "HOTSPOT_SIGNIFICANCE", 0.05)
 
-    # Combine with weights (also keep normalized weights for metadata)
-    score, weights_norm_for_meta = _combine_with_weights(comps)
+    log.info("Methodology: aggregation=%s, selection=%s, transforms=%s, knockouts=%s",
+             aggregation, selection_method,
+             "custom" if transforms else "linear",
+             list(knockout_rules.keys()) if knockout_rules else "none")
+
+    # ── Normalize components ─────────────────────────────────────────
+    comps = _normalize_components(T, tt_da, pop_da, veg_da, ntl_da, drt_da,
+                                  overlays, params=params)
+
+    # Add v2 components (normalize with transforms if specified)
+    _add_v2_components(comps, tt_health_da, tt_edu_da, bldg_dens_da,
+                       dre_demand_da, transforms, params)
+
+    # ── Apply transforms (v2: fuzzy membership) ──────────────────────
+    if transforms:
+        log.info("Applying fuzzy transforms...")
+        for alias, spec in transforms.items():
+            if alias in comps and comps[alias] is not None:
+                comps[alias] = fuzzy_transform(comps[alias], spec)
+                log.info("  %s → %s (invert=%s)", alias, spec.kind, spec.invert)
+
+    # ── Aggregate ────────────────────────────────────────────────────
+    # Build raw values dict for knockout evaluation (before transform)
+    knockout_values = {}
+    if knockout_rules:
+        knockout_values["cropland"] = crop_da
+        knockout_values["population"] = pop_da
+        knockout_values["gsl"] = veg_da
+        knockout_values["drought"] = drt_da
+
+    if aggregation == "geometric":
+        log.info("Using geometric aggregation (non-compensatory)...")
+        # Build weight dict from all components
+        all_weights = _build_weight_dict(comps, params)
+        score = geometric_aggregate(
+            comps, all_weights,
+            knockout_rules=knockout_rules,
+            knockout_values=knockout_values,
+        )
+        weights_norm_for_meta = {k: v / sum(all_weights.values())
+                                 for k, v in all_weights.items() if v > 0 and k in comps}
+    else:
+        # Legacy additive (backward compat)
+        score, weights_norm_for_meta = _combine_with_weights(comps, params=params)
 
     # Apply masks
-    score = _apply_masks(score, T, rur_da, crop_da)
+    score = _apply_masks(score, T, rur_da, crop_da, params=params)
 
     # Smooth if requested
-    score = _smooth_if_needed(score)
+    score = _smooth_if_needed(score, params=params)
 
     # Write continuous score
     write_gtiff_masked(score, PRIORITY_TIF, like=T, nodata=np.nan)
-    log.info(f"Wrote {Path(PRIORITY_TIF).name}")
+    log.info("Wrote %s", Path(PRIORITY_TIF).name)
 
     if WRITE_JSON_SIDECARS:
         write_geo_sidecar(Path(PRIORITY_TIF), like=T, extra={"kind": "priority_score"})
 
-    # Select Top-X (percent or km2) with NaN outside AOI
-    mask = select_top(
-        score, T,
-        top_pct=PARAMS.TOP_PCT_CELLS if PARAMS.TOP_KM2 is None else None,
-        top_km2=PARAMS.TOP_KM2
-    )
+    # ── Select priority areas ────────────────────────────────────────
+    if selection_method == "hotspot":
+        log.info("Using Getis-Ord Gi* hotspot detection (p<%.3f)...", hotspot_sig)
+        z_scores, mask = getis_ord_gi_star(
+            score, bandwidth_cells=5, significance=hotspot_sig)
+        # Write z-score surface for inspection
+        write_gtiff_masked(z_scores, out_r("priority_gi_star_z"), like=T, nodata=np.nan)
+        mask = mask.astype("float32")
+    else:
+        # Legacy percentile selection
+        mask = select_top(
+            score, T,
+            top_pct=params.TOP_PCT_CELLS if params.TOP_KM2 is None else None,
+            top_km2=params.TOP_KM2
+        )
 
     # Optional pruning of tiny blobs
-    mask = prune_clusters(mask, int(PARAMS.MIN_CLUSTER_CELLS or 0))
+    mask = prune_clusters(mask, int(params.MIN_CLUSTER_CELLS or 0))
 
-    # Policy-aware AOI mask at sink (keeps NaN outside even after pruning)
+    # Policy-aware AOI mask at sink
     mask = apply_aoi_mask_if_enabled(mask, T)
 
     write_gtiff_masked(mask, PRIORITY_TOP10_TIF, like=T, nodata=np.nan)
-    log.info(f"Wrote {Path(PRIORITY_TOP10_TIF).name} | selected={(mask.values==1).sum()} cells")
+    log.info("Wrote %s | selected=%d cells", Path(PRIORITY_TOP10_TIF).name,
+             int((mask.values == 1).sum()))
 
     if WRITE_JSON_SIDECARS:
         write_geo_sidecar(Path(PRIORITY_TOP10_TIF), like=T, extra={"kind": "priority_top_mask"})
 
-    # --- Optional JSON sidecar for reproducibility ---
+    # ── JSON sidecar for reproducibility ─────────────────────────────
     if WRITE_JSON_SIDECARS:
         import json as _json
 
         meta = {
             "aoi": AOI,
+            "preset": ACTIVE_PRESET,
+            "methodology": {
+                "aggregation": aggregation,
+                "selection_method": selection_method,
+                "transforms": {k: {"kind": v.kind, "invert": v.invert,
+                                   "a": v.a, "b": v.b, "c": v.c, "d": v.d}
+                               for k, v in (transforms or {}).items()},
+                "knockout_rules": knockout_rules or {},
+                "hotspot_significance": hotspot_sig if selection_method == "hotspot" else None,
+            },
             "use_components": {
-                "ACCESS": int(PARAMS.USE_COMPONENTS[0]),
-                "POP":    int(PARAMS.USE_COMPONENTS[1]),
-                "VEG":    int(PARAMS.USE_COMPONENTS[2]),
-                "NTL":    int(PARAMS.USE_COMPONENTS[3]),
-                "DRT":    int(PARAMS.USE_COMPONENTS[4]),
+                "ACCESS": int(params.USE_COMPONENTS[0]),
+                "POP":    int(params.USE_COMPONENTS[1]),
+                "VEG":    int(params.USE_COMPONENTS[2]),
+                "NTL":    int(params.USE_COMPONENTS[3]),
+                "DRT":    int(params.USE_COMPONENTS[4]),
             },
             "weights_normalized": {k: float(v) for k, v in weights_norm_for_meta.items()},
+            "v2_components_present": sorted([
+                k for k in ("TT_HEALTH", "TT_EDUCATION", "BUILDING_DENSITY", "DRE_DEMAND")
+                if k in comps and comps[k] is not None
+            ]),
             "masks": {
-                "require_rural": bool(PARAMS.MASK_REQUIRE_RURAL),
-                "min_cropland": float(PARAMS.MASK_MIN_CROPLAND or 0.0),
+                "require_rural": bool(params.MASK_REQUIRE_RURAL),
+                "min_cropland": float(params.MASK_MIN_CROPLAND or 0.0),
             },
-            "smoothing_radius_cells": int(PARAMS.SMOOTH_RADIUS or 0),
+            "smoothing_radius_cells": int(params.SMOOTH_RADIUS or 0),
             "selection_rule": {
-                "top_pct_cells": PARAMS.TOP_PCT_CELLS,
-                "top_km2": PARAMS.TOP_KM2,
-                "min_cluster_cells": int(PARAMS.MIN_CLUSTER_CELLS or 0),
+                "method": selection_method,
+                "top_pct_cells": params.TOP_PCT_CELLS,
+                "top_km2": params.TOP_KM2,
+                "min_cluster_cells": int(params.MIN_CLUSTER_CELLS or 0),
             },
             "outputs": {
                 "priority_score_tif": Path(PRIORITY_TIF).name,
@@ -459,7 +645,7 @@ def main() -> None:
         }
         _meta_path = Path(PRIORITY_TIF).with_suffix(".meta.json")
         _meta_path.write_text(_json.dumps(meta, indent=2))
-        log.info(f"Wrote sidecar meta → {_meta_path.name}")
+        log.info("Wrote sidecar meta → %s", _meta_path.name)
 
     # Admin-2 priority ranking table
     _write_admin2_rank_table(T)

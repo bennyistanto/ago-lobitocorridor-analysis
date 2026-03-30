@@ -29,7 +29,7 @@ Design notes
 from __future__ import annotations
 
 # stdlib
-from dataclasses import dataclass
+from dataclasses import dataclass, replace, field
 from pathlib import Path
 import os
 import sys
@@ -117,24 +117,62 @@ class Paths:
     OUT_T: Path
     OUT_F: Path
 
-    # Rasters (already clipped to AOI)
-    TRAVEL: Path
-    POP: Path
-    NTL: Path
-    VEG: Path
-    DROUGHT: Path
-    FLOOD: Path
-    RWI: Path | None
+    # ── Rasters: Accessibility & Population ──────────────────────────
+    TRAVEL: Path                    # Travel time to market (template grid, ~1km)
+    POP: Path                       # WorldPop 2025 (~1km)
+    RWI: Path | None                # Meta Relative Wealth Index (~2.4km)
 
-    # Vectors
+    # ── Rasters: Night-Time Lights (VIIRS) ───────────────────────────
+    NTL: Path                       # DEPRECATED — single-year 2024 (backward compat)
+    NTL_MEAN: Path | None           # 10-year mean 2015–2024 (~464m)
+    NTL_TREND_SLOPE: Path | None    # Radiance/year trend (~464m)
+    NTL_TREND_PCTYR: Path | None    # %/year relative trend (~464m)
+
+    # ── Rasters: Vegetation / Phenology (MCD12Q2) ────────────────────
+    VEG: Path                       # DEPRECATED — NDVI mean 2024 (backward compat)
+    GSL_MEDIAN: Path | None         # Growing Season Length median 2001–2024 (500m)
+    GSL_TREND: Path | None          # GSL trend slope days/year (500m)
+    GREENUP_STDEV: Path | None      # Greenup onset variability StdDev (500m)
+    EVI_AREA: Path | None           # Integrated seasonal productivity (500m)
+    EVI_AMPLITUDE: Path | None      # Peak-to-trough productivity (500m)
+    NUMCYCLES: Path | None          # Dominant cropping cycles mode (500m)
+
+    # ── Rasters: Drought / Climate (SPEI/SPI) ────────────────────────
+    DROUGHT: Path                   # DEPRECATED — FAO ASI 2024 (backward compat)
+    SPEI12_NUM_EVENTS: Path | None          # 65-year drought event count (~4km)
+    SPEI12_MAX_DURATION: Path | None        # Longest event in months (~4km)
+    SPEI12_MEAN_INTENSITY: Path | None      # Typical severity per event (~4km)
+    SPEI12_MIN_PEAK: Path | None            # Worst monthly value ever (~4km)
+    SPEI12_MEAN_MAGNITUDE: Path | None      # Mean cumulative departure (~4km)
+    SPEI12_NUM_EVENTS_RECENT: Path | None   # 2001–2025 event count (~4km)
+    SPEI12_MAX_DURATION_RECENT: Path | None # 2001–2025 longest event (~4km)
+    SPEI12_NUM_EVENTS_BASELINE: Path | None # 1961–1990 baseline (~4km)
+    SPI03_NUM_EVENTS: Path | None           # Short-term agri drought freq (~4km)
+
+    # ── Rasters: Land Cover ──────────────────────────────────────────
+    CROPLAND_RASTER: Path | None    # ESA WorldCover cropland binary (100m)
+    FLOOD: Path                     # Fathom pluvial RP100 (30m)
+
+    # ── Rasters: Friction Surfaces (MAP — minutes per metre) ─────────
+    FRICTION_MOTORISED: Path | None  # Motorised 2019 (~1km)
+    FRICTION_WALKING: Path | None    # Walking-only 2019 (~1km)
+    FRICTION_TRAVELSPEED: Path | None  # General travel speed 2015 (~1km)
+
+    # ── Vectors ──────────────────────────────────────────────────────
     BND_ADM1: Path
     BND_ADM2: Path
     ROADS: Path
     RAIL: Path
-    CROPLAND: Path
+    CROPLAND: Path                  # DEPRECATED — vector cropland (kept for fallback)
     ELEC: Path
     SETTLE: Path
     SITES: Path
+
+    # ── Vectors: New layers ──────────────────────────────────────────
+    HEALTH_FACILITIES: Path | None      # OSM health facility points
+    EDUCATION_FACILITIES: Path | None   # OSM education facility points
+    DRE_SETTLEMENTS: Path | None        # DRE Atlas settlement polygons
+    OPEN_BUILDINGS: Path | None         # Google Open Buildings polygons
 
     # Admin2 (RAPP) themes & outputs
     MUNI_DIR: Path
@@ -160,31 +198,73 @@ def _build_paths() -> Paths:
     # Where Admin2 RAPP shapefiles live (per theme)
     muni_dir = vec
 
+    # Helper: return path if file exists, else None
+    def _opt(p: Path) -> Path | None:
+        return p if p.exists() else None
+
     return Paths(
         ROOT=root,
         DATA=data, VEC=vec, RAS=ras,
         OUT=out, OUT_R=out_r, OUT_T=out_t, OUT_F=out_f,
 
-        # --- Rasters (AOI-parametric filenames) ---
+        # ── Accessibility & Population ───────────────────────────────
         TRAVEL = ras / _fmt("ago_phy_{AOI}_traveltime_market.tif"),
         POP    = ras / _fmt("ago_pop_{AOI}_2025_CN_1km_R2025A_v1.tif"),
-        NTL    = ras / _fmt("ago_phy_{AOI}_viirs_ntl_2024.tif"),
-        VEG    = ras / _fmt("ago_phy_{AOI}_vegindex_mean_2024.tif"),  # 0.001..1
-        DROUGHT= ras / _fmt("ago_phy_{AOI}_asishdfc_all_al30_2024.tif"),
-        FLOOD  = ras / _fmt("ago_nhr_{AOI}_pluvialdefended_100rp_2020.tif"),
-        RWI    = ras / _fmt("ago_pop_{AOI}_rwi_meta_2022.tif"),  # optional equity layer
+        RWI    = _opt(ras / _fmt("ago_pop_{AOI}_rwi_meta_2022.tif")),
 
-        # --- Vectors (AOI-parametric filenames) ---
+        # ── Night-Time Lights ────────────────────────────────────────
+        NTL             = ras / _fmt("ago_phy_{AOI}_viirs_ntl_2024.tif"),          # DEPRECATED fallback
+        NTL_MEAN        = _opt(ras / _fmt("ago_phy_{AOI}_ntl_mean_2015_2024.tif")),
+        NTL_TREND_SLOPE = _opt(ras / _fmt("ago_phy_{AOI}_ntl_trend_slope_2015_2024.tif")),
+        NTL_TREND_PCTYR = _opt(ras / _fmt("ago_phy_{AOI}_ntl_trend_pctyr_2015_2024.tif")),
+
+        # ── Vegetation / Phenology ───────────────────────────────────
+        VEG             = ras / _fmt("ago_phy_{AOI}_vegindex_mean_2024.tif"),      # DEPRECATED fallback
+        GSL_MEDIAN      = _opt(ras / _fmt("ago_phy_{AOI}_gsl_median_days_2001_2024.tif")),
+        GSL_TREND       = _opt(ras / _fmt("ago_phy_{AOI}_gsl_trend_daysyr_2001_2024.tif")),
+        GREENUP_STDEV   = _opt(ras / _fmt("ago_phy_{AOI}_greenup_stdev_days_2001_2024.tif")),
+        EVI_AREA        = _opt(ras / _fmt("ago_phy_{AOI}_evi_area_median_2001_2024.tif")),
+        EVI_AMPLITUDE   = _opt(ras / _fmt("ago_phy_{AOI}_evi_amplitude_median_2001_2024.tif")),
+        NUMCYCLES       = _opt(ras / _fmt("ago_phy_{AOI}_numcycles_mode_2001_2024.tif")),
+
+        # ── Drought / Climate (SPEI / SPI) ───────────────────────────
+        DROUGHT                  = ras / _fmt("ago_phy_{AOI}_asishdfc_all_al30_2024.tif"),  # DEPRECATED fallback
+        SPEI12_NUM_EVENTS        = _opt(ras / _fmt("ago_cli_{AOI}_spei12_num_events_1958_2025.tif")),
+        SPEI12_MAX_DURATION      = _opt(ras / _fmt("ago_cli_{AOI}_spei12_max_duration_1958_2025.tif")),
+        SPEI12_MEAN_INTENSITY    = _opt(ras / _fmt("ago_cli_{AOI}_spei12_mean_intensity_1958_2025.tif")),
+        SPEI12_MIN_PEAK          = _opt(ras / _fmt("ago_cli_{AOI}_spei12_min_peak_1958_2025.tif")),
+        SPEI12_MEAN_MAGNITUDE    = _opt(ras / _fmt("ago_cli_{AOI}_spei12_mean_magnitude_1958_2025.tif")),
+        SPEI12_NUM_EVENTS_RECENT = _opt(ras / _fmt("ago_cli_{AOI}_spei12_num_events_2001_2025.tif")),
+        SPEI12_MAX_DURATION_RECENT = _opt(ras / _fmt("ago_cli_{AOI}_spei12_max_duration_2001_2025.tif")),
+        SPEI12_NUM_EVENTS_BASELINE = _opt(ras / _fmt("ago_cli_{AOI}_spei12_num_events_1961_1990.tif")),
+        SPI03_NUM_EVENTS         = _opt(ras / _fmt("ago_cli_{AOI}_spi03_num_events_1958_2025.tif")),
+
+        # ── Land Cover ───────────────────────────────────────────────
+        CROPLAND_RASTER = _opt(ras / _fmt("ago_phy_{AOI}_cropland_100m_worldcover.tif")),
+        FLOOD           = ras / _fmt("ago_nhr_{AOI}_pluvialdefended_100rp_2020.tif"),
+
+        # ── Friction Surfaces (MAP — minutes per metre) ──────────────
+        FRICTION_MOTORISED  = _opt(ras / _fmt("ago_phy_{AOI}_motorized_frictionsurface_map_2019.tif")),
+        FRICTION_WALKING    = _opt(ras / _fmt("ago_phy_{AOI}_walking_frictionsurface_map_2019.tif")),
+        FRICTION_TRAVELSPEED = _opt(ras / _fmt("ago_phy_{AOI}_travelspeed_frictionsurface_map_2015.tif")),
+
+        # ── Vectors (existing) ───────────────────────────────────────
         BND_ADM1 = vec / _fmt("ago_bnd_{AOI}_adm1_a.shp"),
         BND_ADM2 = vec / _fmt("ago_bnd_{AOI}_adm2_a.shp"),
         ROADS    = vec / _fmt("ago_trs_{AOI}_roads_osm_l.shp"),
         RAIL     = vec / _fmt("ago_trs_{AOI}_railways_osm_l.shp"),
-        CROPLAND = vec / _fmt("ago_phy_{AOI}_cropland_10m_worldcover_a.shp"),
-        ELEC     = vec / _fmt("ago_pop_{AOI}_electricity_type_a.shp"),  # FinalElecCode2020: 1 grid, 99 unelectrified
-        SETTLE   = vec / _fmt("ago_pop_{AOI}_settlement_type_a.shp"),   # IsUrban: 0 rural, 2 urban
+        CROPLAND = vec / _fmt("ago_phy_{AOI}_cropland_10m_worldcover_a.shp"),  # DEPRECATED fallback
+        ELEC     = vec / _fmt("ago_pop_{AOI}_electricity_type_a.shp"),
+        SETTLE   = vec / _fmt("ago_pop_{AOI}_settlement_type_a.shp"),
         SITES    = vec / _fmt("ago_poi_{AOI}_projectloc_dm_p.shp"),
 
-        # --- Admin2 RAPP themes & outputs ---
+        # ── Vectors (new layers) ─────────────────────────────────────
+        HEALTH_FACILITIES    = _opt(vec / _fmt("ago_poi_{AOI}_health_facilities_p.shp")),
+        EDUCATION_FACILITIES = _opt(vec / _fmt("ago_poi_{AOI}_education_facilities_p.shp")),
+        DRE_SETTLEMENTS      = _opt(vec / _fmt("ago_phy_{AOI}_dre_settlements_a.shp")),
+        OPEN_BUILDINGS       = _opt(vec / _fmt("ago_phy_{AOI}_openbuildings_a.shp")),
+
+        # ── Admin2 RAPP themes & outputs ─────────────────────────────
         MUNI_DIR = muni_dir,
         MUNI_CLEAN_TBL   = out_t / f"{AOI}_municipality_indicators.csv",
         MUNI_CORR_TBL    = out_t / f"{AOI}_corr_with_rural_poverty.csv",
@@ -467,6 +547,57 @@ def _sanitize_radii(vals) -> tuple[int, ...]:
     cleaned = {int(r) for r in vals if int(r) > 0}
     return tuple(sorted(cleaned)) or (5, 10, 30)
 
+
+# ======================================================================
+# 7a) Transform specifications for fuzzy membership functions
+# ======================================================================
+#
+# Each indicator in the priority surface is transformed from its raw
+# domain into a [0, 1] suitability score.  Instead of linear min-max
+# (which assumes equal importance of every unit of change), we use
+# domain-informed fuzzy membership functions:
+#
+# References:
+#   - Zadeh, L. A. (1965). Fuzzy sets. Information and Control.
+#   - Jiang & Eastman (2000). Application of fuzzy measures in MCDM. IJGIS.
+#   - Malczewski & Rinner (2015). MCDA in GIS. Springer.
+
+@dataclass(frozen=True)
+class TransformSpec:
+    """Specification for a fuzzy membership transform.
+
+    Parameters
+    ----------
+    kind : str
+        Transform type:
+        - ``"sigmoid"``     — S-curve: slow–fast–slow transition
+        - ``"linear"``      — Classic min-max (backward compat)
+        - ``"log"``         — Logarithmic (compresses high values)
+        - ``"trapezoidal"`` — Flat low → ramp → flat high → ramp down
+        - ``"threshold"``   — Step function at a critical value
+    invert : bool
+        If True, output is ``1 - f(x)`` (e.g., "far from road" → high score).
+    a, b, c, d : float
+        Shape parameters (interpretation depends on *kind*):
+
+        sigmoid:      a = inflection point, b = steepness (>0 = rising)
+                      (c, d unused)
+        linear:       a = lower bound, b = upper bound
+                      (c, d unused)
+        log:          a = offset (added before log), b = cap percentile (0–100)
+                      (c, d unused)
+        trapezoidal:  a = lower zero, b = lower one, c = upper one, d = upper zero
+                      output is 0 below a, ramps to 1 at b, stays 1 to c, ramps to 0 at d
+        threshold:    a = value below which score = 0, b = value above which score = 1
+                      (linear between a and b; c, d unused)
+    """
+    kind: str = "linear"
+    invert: bool = False
+    a: float = 0.0
+    b: float = 1.0
+    c: float = 0.0
+    d: float = 0.0
+
 @dataclass(frozen=True)
 class Params:
     """All knobs in one place for repeatability."""
@@ -508,6 +639,12 @@ class Params:
     W_FOOD: float              # food insecurity (0..1)
     W_MTT: float               # admin2 travel time (minutes, inverted)
     W_RWI: float               # Meta RWI (-2..2 → 0..1)
+
+    # --- New component weights (v2 — set to 0.0 to disable) ---
+    W_TT_HEALTH: float         # travel time to health facility (inverted)
+    W_TT_EDUCATION: float      # travel time to education facility (inverted)
+    W_BUILDING_DENSITY: float  # Google Open Buildings density
+    W_DRE_DEMAND: float        # DRE settlement energy demand
 
     # --- OD-Lite gravity controls (v2) ---
     OD_ALPHA: float
@@ -574,6 +711,12 @@ PARAMS = Params(
     W_MTT=0.10,
     W_RWI=0.15,
 
+    # New component weights (v2)
+    W_TT_HEALTH=0.0,
+    W_TT_EDUCATION=0.0,
+    W_BUILDING_DENSITY=0.0,
+    W_DRE_DEMAND=0.0,
+
     # OD-Lite gravity controls (v2)
     OD_ALPHA=1.0,
     OD_GAMMA=1.0,
@@ -593,6 +736,430 @@ PARAMS = Params(
     OD_MAX_LINES=200,
     OD_USE_TRAVELTIME=False,
 )
+
+
+# ======================================================================
+# 7b) Thematic Investment Presets
+# ======================================================================
+#
+# Each preset bundles a named investment philosophy with all tunable
+# parameters.  ``preset_to_params()`` converts a preset into a Params
+# override so the rest of the pipeline sees a standard Params object.
+#
+# Usage:
+#   export PRESET=food_security  (env var, like AOI)
+#   -- or --
+#   params = preset_to_params(PRESETS["food_security"])
+
+@dataclass(frozen=True)
+class ThematicPreset:
+    """Named investment philosophy with all tunable parameters.
+
+    Fields mirror the ``Params`` knobs that vary by investment theme.
+    Q2--Q5 fields default to ``None`` (= fall back to current behaviour).
+    """
+
+    # Identity ----------------------------------------------------------
+    name: str
+    description: str
+
+    # Q1 — Priority surface (Steps 07 / 10) ----------------------------
+    USE_COMPONENTS: tuple[int, int, int, int, int]
+    W_ACC: float
+    W_POP: float
+    W_VEG: float
+    W_NTL: float
+    W_DRT: float
+    # Overlay weights
+    W_POV: float
+    W_FOOD: float
+    W_MTT: float
+    W_RWI: float
+    # Masks
+    MASK_REQUIRE_RURAL: bool
+    MASK_MIN_CROPLAND: float
+    # Transform caps
+    NTL_CAP: float
+    VEG_MIN: float
+    # Smoothing & clustering
+    SMOOTH_RADIUS: int
+    MIN_CLUSTER_CELLS: int
+    # Selection
+    TOP_PCT_CELLS: float | None
+    TOP_KM2: float | None
+
+    # --- New component weights (v2) ---
+    W_TT_HEALTH: float = 0.0
+    W_TT_EDUCATION: float = 0.0
+    W_BUILDING_DENSITY: float = 0.0
+    W_DRE_DEMAND: float = 0.0
+
+    # === Scoring methodology (v2) =====================================
+
+    # Transform specifications — per-indicator fuzzy membership params.
+    # Keys match component aliases (ACC, POP, GSL, NTL, DRT, TT_HEALTH, …).
+    # None = use legacy linear min-max for all components.
+    TRANSFORMS: dict[str, TransformSpec] | None = None
+
+    # Aggregation method:
+    #   "additive"  — weighted linear combination (backward compat)
+    #   "geometric" — weighted geometric mean (non-compensatory)
+    AGGREGATION: str = "additive"
+
+    # Knockout rules — hard constraints per indicator.
+    # {indicator_alias: minimum_raw_value}  e.g., {"cropland": 0.10}
+    # Cells below the threshold on ANY knockout indicator → score = 0.
+    # None = no knockouts (backward compat).
+    KNOCKOUT_RULES: dict[str, float] | None = None
+
+    # Selection method for identifying priority areas:
+    #   "percentile" — top N% of valid cells (backward compat)
+    #   "hotspot"    — Getis-Ord Gi* statistically significant clusters
+    SELECTION_METHOD: str = "percentile"
+
+    # Gi* significance level (p-value threshold), used when SELECTION_METHOD="hotspot".
+    # 0.05 → z ≥ 1.96; 0.01 → z ≥ 2.576; 0.10 → z ≥ 1.645
+    HOTSPOT_SIGNIFICANCE: float = 0.05
+
+    # Q2 — Municipality ranking (Step 09) ------------------------------
+    # indicator_name → weight.  None = equal-weight fallback.
+    MUNI_INDICATOR_WEIGHTS: dict[str, float] | None = None
+    # Column used as benefit proxy in _benefit_incidence().
+    BENEFIT_PROXY: str = "pct_priority"
+
+    # Q3 — Catchment extra KPIs (Step 12) ------------------------------
+    # alias → raster basename (no .tif).  None = standard KPIs only.
+    EXTRA_KPI_RASTERS: dict[str, str] | None = None
+
+    # Q4 — Synergy sector filter (Step 13) -----------------------------
+    # source_key → [allowed sectors].  None = count all projects.
+    SYNERGY_SECTOR_FILTER: dict[str, list[str]] | None = None
+
+    # Q5 — OD overrides (Step 14) --------------------------------------
+    # None = use Params defaults.
+    OD_LAMBDA_OVERRIDE: float | None = None
+    OD_BETA_OVERRIDE: float | None = None
+    OD_MAX_DIST_KM_OVERRIDE: float | None = None
+
+
+def preset_to_params(
+    preset: ThematicPreset,
+    base: Params | None = None,
+) -> Params:
+    """Create a ``Params`` instance with *preset* overrides applied.
+
+    Non-preset fields (TARGET_GRID, ISO_THRESH, FLOOD_DEPTH_RISK, …)
+    are inherited unchanged from *base* (defaults to the global PARAMS).
+    """
+    if base is None:
+        base = PARAMS
+    overrides: dict = dict(
+        USE_COMPONENTS=preset.USE_COMPONENTS,
+        W_ACC=preset.W_ACC, W_POP=preset.W_POP,
+        W_VEG=preset.W_VEG, W_NTL=preset.W_NTL, W_DRT=preset.W_DRT,
+        W_POV=preset.W_POV, W_FOOD=preset.W_FOOD,
+        W_MTT=preset.W_MTT, W_RWI=preset.W_RWI,
+        W_TT_HEALTH=preset.W_TT_HEALTH,
+        W_TT_EDUCATION=preset.W_TT_EDUCATION,
+        W_BUILDING_DENSITY=preset.W_BUILDING_DENSITY,
+        W_DRE_DEMAND=preset.W_DRE_DEMAND,
+        MASK_REQUIRE_RURAL=preset.MASK_REQUIRE_RURAL,
+        MASK_MIN_CROPLAND=preset.MASK_MIN_CROPLAND,
+        NTL_CAP=preset.NTL_CAP, VEG_MIN=preset.VEG_MIN,
+        SMOOTH_RADIUS=preset.SMOOTH_RADIUS,
+        MIN_CLUSTER_CELLS=preset.MIN_CLUSTER_CELLS,
+        TOP_PCT_CELLS=preset.TOP_PCT_CELLS,
+        TOP_KM2=preset.TOP_KM2,
+    )
+    if preset.OD_LAMBDA_OVERRIDE is not None:
+        overrides["OD_LAMBDA"] = preset.OD_LAMBDA_OVERRIDE
+    if preset.OD_BETA_OVERRIDE is not None:
+        overrides["OD_BETA"] = preset.OD_BETA_OVERRIDE
+    if preset.OD_MAX_DIST_KM_OVERRIDE is not None:
+        overrides["OD_MAX_DIST_KM"] = preset.OD_MAX_DIST_KM_OVERRIDE
+    return replace(base, **overrides)
+
+
+# ------------------------------------------------------------------
+# Named presets
+# ------------------------------------------------------------------
+
+PRESETS: dict[str, ThematicPreset] = {
+
+    # ──────────────────────────────────────────────────────────────────
+    # 1. Balanced — general-purpose baseline (backward-compatible)
+    # ──────────────────────────────────────────────────────────────────
+    # Uses additive aggregation + percentile selection to reproduce
+    # pre-v2 output exactly.  No knockouts, no fuzzy transforms.
+    "balanced": ThematicPreset(
+        name="balanced",
+        description=(
+            "General-purpose baseline with no strong thematic emphasis. "
+            "Additive aggregation with percentile selection for backward "
+            "compatibility with pre-v2 framework output."
+        ),
+        USE_COMPONENTS=(1, 1, 0, 0, 1),
+        W_ACC=0.35, W_POP=0.25, W_VEG=0.20, W_NTL=0.10, W_DRT=0.10,
+        W_POV=0.15, W_FOOD=0.10, W_MTT=0.10, W_RWI=0.15,
+        MASK_REQUIRE_RURAL=True, MASK_MIN_CROPLAND=0.05,
+        NTL_CAP=0.20, VEG_MIN=0.40,
+        SMOOTH_RADIUS=1, MIN_CLUSTER_CELLS=30,
+        TOP_PCT_CELLS=0.10, TOP_KM2=None,
+        # v2 defaults (backward compat)
+        AGGREGATION="additive",
+        SELECTION_METHOD="percentile",
+    ),
+
+    # ──────────────────────────────────────────────────────────────────
+    # 2. Last-mile access — reach remote underserved communities
+    # ──────────────────────────────────────────────────────────────────
+    # Investment philosophy: maximise reach to the hardest-to-reach,
+    # most underserved populations.  Travel time to health/school
+    # facilities drives selection alongside poverty overlays.
+    # NTL disabled so darkness is not penalised.
+    "last_mile_access": ThematicPreset(
+        name="last_mile_access",
+        description=(
+            "Maximise reach to remote, underserved communities far from "
+            "services.  Geometric aggregation ensures cells must perform "
+            "across accessibility, poverty, AND facility distance."
+        ),
+        USE_COMPONENTS=(1, 1, 0, 0, 1),       # ACC + POP + DRT; NTL off
+        W_ACC=0.30, W_POP=0.15, W_VEG=0.00, W_NTL=0.00, W_DRT=0.10,
+        W_POV=0.20, W_FOOD=0.05, W_MTT=0.10, W_RWI=0.15,
+        W_TT_HEALTH=0.20, W_TT_EDUCATION=0.15, W_DRE_DEMAND=0.10,
+        MASK_REQUIRE_RURAL=True, MASK_MIN_CROPLAND=0.03,
+        NTL_CAP=0.20, VEG_MIN=0.30,
+        SMOOTH_RADIUS=1, MIN_CLUSTER_CELLS=20,
+        TOP_PCT_CELLS=0.12, TOP_KM2=None,
+        # v2 methodology
+        AGGREGATION="geometric",
+        SELECTION_METHOD="hotspot",
+        HOTSPOT_SIGNIFICANCE=0.05,
+        TRANSFORMS={
+            # Travel time: sigmoid inflection at 120 min, steep transition
+            "ACC": TransformSpec("sigmoid", invert=True, a=120.0, b=0.025),
+            # Population: log-transform to compress dense areas
+            "POP": TransformSpec("log", invert=False, a=1.0, b=99.0),
+            # Drought: threshold — <3 events = low risk, >8 = chronic
+            "DRT": TransformSpec("threshold", invert=False, a=3.0, b=8.0),
+            # Health access: sigmoid at 60 min (WHO "1-hour rule")
+            "TT_HEALTH": TransformSpec("sigmoid", invert=True, a=60.0, b=0.04),
+            # Education: sigmoid at 45 min
+            "TT_EDUCATION": TransformSpec("sigmoid", invert=True, a=45.0, b=0.04),
+            # DRE demand: linear (higher demand = higher priority)
+            "DRE_DEMAND": TransformSpec("linear", invert=False, a=0.0, b=1.0),
+        },
+        KNOCKOUT_RULES={
+            "population": 50,           # minimum 50 people in cell
+        },
+        MUNI_INDICATOR_WEIGHTS={
+            "poverty": 0.20, "food_insec": 0.10, "avg_tt": 0.20,
+            "priority_area": 0.10, "cropland": 0.05,
+            "elec_inverse": 0.10, "rwi_inverse": 0.10,
+            "tt_health": 0.15,
+        },
+    ),
+
+    # ──────────────────────────────────────────────────────────────────
+    # 3. Peri-urban growth — near urban centres for cost efficiency
+    # ──────────────────────────────────────────────────────────────────
+    # Investment philosophy: leverage existing market linkages and
+    # infrastructure near urban centres.  NTL and building density
+    # are primary drivers.  Rural mask OFF.
+    "peri_urban_growth": ThematicPreset(
+        name="peri_urban_growth",
+        description=(
+            "Invest near urban centres to reduce delivery cost.  "
+            "Building density and NTL trend drive selection of productive "
+            "peri-urban agricultural land with infrastructure potential."
+        ),
+        USE_COMPONENTS=(1, 1, 0, 1, 0),       # ACC + POP + NTL; DRT off
+        W_ACC=0.20, W_POP=0.25, W_VEG=0.00, W_NTL=0.25, W_DRT=0.00,
+        W_POV=0.05, W_FOOD=0.05, W_MTT=0.05, W_RWI=0.10,
+        W_BUILDING_DENSITY=0.20,
+        MASK_REQUIRE_RURAL=False, MASK_MIN_CROPLAND=0.10,
+        NTL_CAP=0.50, VEG_MIN=0.30,
+        SMOOTH_RADIUS=2, MIN_CLUSTER_CELLS=50,
+        TOP_PCT_CELLS=0.08, TOP_KM2=None,
+        AGGREGATION="geometric",
+        SELECTION_METHOD="hotspot",
+        HOTSPOT_SIGNIFICANCE=0.05,
+        TRANSFORMS={
+            # Access: sigmoid — diminishing returns past 60 min
+            "ACC": TransformSpec("sigmoid", invert=True, a=60.0, b=0.03),
+            # NTL: log-transform (bright areas saturate quickly)
+            "NTL": TransformSpec("log", invert=False, a=0.01, b=95.0),
+            # Building density: log (compress very dense areas)
+            "BUILDING_DENSITY": TransformSpec("log", invert=False, a=1.0, b=99.0),
+            # Population: log
+            "POP": TransformSpec("log", invert=False, a=1.0, b=99.0),
+        },
+        KNOCKOUT_RULES={
+            "cropland": 0.10,           # minimum 10% cropland fraction
+            "population": 100,          # minimum population
+        },
+        MUNI_INDICATOR_WEIGHTS={
+            "poverty": 0.10, "food_insec": 0.05, "avg_tt": 0.05,
+            "priority_area": 0.15, "cropland": 0.20,
+            "elec_inverse": 0.05, "rwi_inverse": 0.05,
+            "building_density": 0.15,
+        },
+    ),
+
+    # ──────────────────────────────────────────────────────────────────
+    # 4. Food security — food-insecure agricultural zones
+    # ──────────────────────────────────────────────────────────────────
+    # Investment philosophy: target areas with high agricultural
+    # potential (long growing season, double-cropping) that currently
+    # suffer from food insecurity.  Phenology metrics replace NDVI.
+    "food_security": ThematicPreset(
+        name="food_security",
+        description=(
+            "Target food-insecure agricultural zones with high growing "
+            "potential.  Growing season length and EVI productivity "
+            "identify viable cropland; food-insecurity overlay ensures "
+            "investment reaches those in greatest need."
+        ),
+        USE_COMPONENTS=(1, 1, 1, 0, 1),       # ACC + POP + VEG(GSL) + DRT
+        W_ACC=0.15, W_POP=0.10, W_VEG=0.25, W_NTL=0.00, W_DRT=0.15,
+        W_POV=0.10, W_FOOD=0.25, W_MTT=0.05, W_RWI=0.10,
+        MASK_REQUIRE_RURAL=True, MASK_MIN_CROPLAND=0.20,
+        NTL_CAP=0.20, VEG_MIN=0.50,
+        SMOOTH_RADIUS=1, MIN_CLUSTER_CELLS=40,
+        TOP_PCT_CELLS=0.10, TOP_KM2=None,
+        AGGREGATION="geometric",
+        SELECTION_METHOD="hotspot",
+        HOTSPOT_SIGNIFICANCE=0.05,
+        TRANSFORMS={
+            # GSL: trapezoidal — <90 days too short, 120-270 optimal, >300 forest
+            "VEG": TransformSpec("trapezoidal", invert=False,
+                                 a=90.0, b=120.0, c=270.0, d=300.0),
+            # Drought: threshold — events ≥3 mean climate risk to agriculture
+            "DRT": TransformSpec("threshold", invert=False, a=3.0, b=10.0),
+            # Access: sigmoid
+            "ACC": TransformSpec("sigmoid", invert=True, a=120.0, b=0.02),
+            # Food insecurity overlay: already 0..1, keep linear
+            "FOOD": TransformSpec("linear", invert=False, a=0.0, b=1.0),
+        },
+        KNOCKOUT_RULES={
+            "cropland": 0.10,           # must have some cropland
+            "gsl": 90,                  # growing season at least 90 days
+        },
+        EXTRA_KPI_RASTERS={
+            "evi_area": "evi_area_median_1km",
+            "numcycles": "numcycles_mode_1km",
+            "greenup_stdev": "greenup_stdev_1km",
+        },
+        MUNI_INDICATOR_WEIGHTS={
+            "poverty": 0.15, "food_insec": 0.25, "avg_tt": 0.10,
+            "priority_area": 0.10, "cropland": 0.20,
+            "elec_inverse": 0.05, "rwi_inverse": 0.05,
+            "gsl_median": 0.10,
+        },
+    ),
+
+    # ──────────────────────────────────────────────────────────────────
+    # 5. Climate resilience — drought- and flood-vulnerable areas
+    # ──────────────────────────────────────────────────────────────────
+    # Investment philosophy: prioritise areas where climate shocks
+    # are most frequent and severe, and where growing seasons are
+    # shortening.  Uses full SPEI-12 suite + GSL trend.
+    "climate_resilience": ThematicPreset(
+        name="climate_resilience",
+        description=(
+            "Focus on climate-vulnerable areas using 65-year SPEI-12 "
+            "drought characterisation and phenological trend analysis.  "
+            "GSL trend identifies areas where growing seasons are "
+            "shortening; greenup variability flags unreliable planting."
+        ),
+        USE_COMPONENTS=(1, 1, 1, 0, 1),       # ACC + POP + VEG(GSL) + DRT(SPEI)
+        W_ACC=0.10, W_POP=0.10, W_VEG=0.20, W_NTL=0.00, W_DRT=0.30,
+        W_POV=0.10, W_FOOD=0.15, W_MTT=0.05, W_RWI=0.10,
+        MASK_REQUIRE_RURAL=True, MASK_MIN_CROPLAND=0.10,
+        NTL_CAP=0.20, VEG_MIN=0.40,
+        SMOOTH_RADIUS=1, MIN_CLUSTER_CELLS=30,
+        TOP_PCT_CELLS=0.10, TOP_KM2=None,
+        AGGREGATION="geometric",
+        SELECTION_METHOD="hotspot",
+        HOTSPOT_SIGNIFICANCE=0.05,
+        TRANSFORMS={
+            # Drought (SPEI num_events): sigmoid — chronic drought zones
+            "DRT": TransformSpec("sigmoid", invert=False, a=6.0, b=0.5),
+            # GSL: trapezoidal — targeting productive-but-threatened land
+            "VEG": TransformSpec("trapezoidal", invert=False,
+                                 a=60.0, b=100.0, c=250.0, d=320.0),
+            # Access: linear (less important here)
+            "ACC": TransformSpec("linear", invert=True, a=0.0, b=240.0),
+        },
+        KNOCKOUT_RULES={
+            "drought": 2,               # must have ≥2 drought events to qualify
+            "population": 30,           # some population at risk
+        },
+        EXTRA_KPI_RASTERS={
+            "spei_max_duration": "spei12_max_duration_1km",
+            "spei_mean_intensity": "spei12_mean_intensity_1km",
+            "spei_min_peak": "spei12_min_peak_1km",
+            "gsl_trend": "gsl_trend_1km",
+            "greenup_stdev": "greenup_stdev_1km",
+            "spei_num_events_recent": "spei12_num_events_recent_1km",
+        },
+        MUNI_INDICATOR_WEIGHTS={
+            "poverty": 0.15, "food_insec": 0.20, "avg_tt": 0.05,
+            "priority_area": 0.10, "cropland": 0.15,
+            "elec_inverse": 0.05, "rwi_inverse": 0.05,
+            "drought_events": 0.25,
+        },
+    ),
+
+    # ──────────────────────────────────────────────────────────────────
+    # 6. Connectivity — strengthen economic corridors
+    # ──────────────────────────────────────────────────────────────────
+    # Investment philosophy: strengthen market access and economic
+    # integration along transport corridors.  NTL trend identifies
+    # areas with expanding economic activity.
+    "connectivity": ThematicPreset(
+        name="connectivity",
+        description=(
+            "Strengthen economic corridors and market access.  NTL trend "
+            "captures expanding electrification; building density proxies "
+            "for emerging economic nodes.  Rural mask OFF."
+        ),
+        USE_COMPONENTS=(1, 1, 0, 1, 0),       # ACC + POP + NTL
+        W_ACC=0.35, W_POP=0.15, W_VEG=0.00, W_NTL=0.20, W_DRT=0.00,
+        W_POV=0.05, W_FOOD=0.05, W_MTT=0.15, W_RWI=0.10,
+        W_BUILDING_DENSITY=0.10,
+        MASK_REQUIRE_RURAL=False, MASK_MIN_CROPLAND=0.05,
+        NTL_CAP=0.40, VEG_MIN=0.30,
+        SMOOTH_RADIUS=2, MIN_CLUSTER_CELLS=60,
+        TOP_PCT_CELLS=0.08, TOP_KM2=None,
+        AGGREGATION="geometric",
+        SELECTION_METHOD="hotspot",
+        HOTSPOT_SIGNIFICANCE=0.05,
+        TRANSFORMS={
+            # Access: sigmoid with lower inflection (connectivity = moderate travel)
+            "ACC": TransformSpec("sigmoid", invert=True, a=90.0, b=0.03),
+            # NTL: log (economic activity signal)
+            "NTL": TransformSpec("log", invert=False, a=0.01, b=95.0),
+            # Population: log
+            "POP": TransformSpec("log", invert=False, a=1.0, b=99.0),
+        },
+        KNOCKOUT_RULES={
+            "population": 100,          # must have settlement presence
+        },
+        OD_LAMBDA_OVERRIDE=0.010,
+        OD_MAX_DIST_KM_OVERRIDE=2000.0,
+        MUNI_INDICATOR_WEIGHTS={
+            "poverty": 0.05, "food_insec": 0.05, "avg_tt": 0.20,
+            "priority_area": 0.15, "cropland": 0.10,
+            "elec_inverse": 0.05, "rwi_inverse": 0.10,
+            "building_density": 0.15,
+        },
+    ),
+}
+
+# Active preset — set via env var or hardcode.
+ACTIVE_PRESET: str = os.environ.get("PRESET", "balanced")
 
 
 # ======================================================================
@@ -683,6 +1250,43 @@ ROADS_RISK_TIF          = out_r("roads_flood_risk_cells_1km")
 ROADS_RISK_NEAR_TIF     = out_r("roads_flood_risk_near_priority_1km")
 KPI_CSV                 = out_t("kpis_isochrones")
 SITE_AUDIT_CSV          = out_t("site_audit_points")
+
+# ── Canonical output names for new Step 00 products ──────────────────
+# NTL (replaces single-year)
+NTL_MEAN_1KM      = out_r("ntl_mean_1km")
+NTL_TREND_1KM     = out_r("ntl_trend_slope_1km")
+NTL_TREND_PCT_1KM = out_r("ntl_trend_pctyr_1km")
+# Phenology (replaces NDVI mean)
+GSL_MEDIAN_1KM    = out_r("gsl_median_1km")
+GSL_TREND_1KM     = out_r("gsl_trend_1km")
+GREENUP_STDEV_1KM = out_r("greenup_stdev_1km")
+EVI_AREA_1KM      = out_r("evi_area_median_1km")
+EVI_AMPLITUDE_1KM = out_r("evi_amplitude_median_1km")
+NUMCYCLES_1KM     = out_r("numcycles_mode_1km")
+# Drought (replaces FAO ASI)
+SPEI12_NUM_EVENTS_1KM        = out_r("spei12_num_events_1km")
+SPEI12_MAX_DURATION_1KM      = out_r("spei12_max_duration_1km")
+SPEI12_MEAN_INTENSITY_1KM    = out_r("spei12_mean_intensity_1km")
+SPEI12_MIN_PEAK_1KM          = out_r("spei12_min_peak_1km")
+SPEI12_MEAN_MAGNITUDE_1KM    = out_r("spei12_mean_magnitude_1km")
+SPEI12_NUM_EVENTS_RECENT_1KM = out_r("spei12_num_events_recent_1km")
+SPEI12_MAX_DURATION_RECENT_1KM = out_r("spei12_max_duration_recent_1km")
+SPEI12_NUM_EVENTS_BASELINE_1KM = out_r("spei12_num_events_baseline_1km")
+SPI03_NUM_EVENTS_1KM         = out_r("spi03_num_events_1km")
+# Cropland (raster-based, replaces vector supersample)
+CROPLAND_FRACTION_1KM = out_r("cropland_fraction_1km")
+CROPLAND_PATCHES_1KM  = out_r("cropland_patches_1km")
+# Facility access (NEW — travel time via friction surface)
+TT_HEALTH_MOTORISED_1KM    = out_r("tt_health_motorised_1km")
+TT_HEALTH_WALKING_1KM      = out_r("tt_health_walking_1km")
+TT_EDUCATION_MOTORISED_1KM = out_r("tt_education_motorised_1km")
+TT_EDUCATION_WALKING_1KM   = out_r("tt_education_walking_1km")
+# Building/settlement layers (NEW)
+BUILDING_COUNT_1KM   = out_r("building_count_1km")
+BUILDING_AREA_1KM    = out_r("building_area_1km")
+BUILDING_DENSITY_1KM = out_r("building_density_1km")
+DRE_POP_UNSERVED_1KM   = out_r("dre_pop_unserved_1km")
+DRE_DEMAND_DENSITY_1KM = out_r("dre_demand_density_1km")
 
 # Site audit (Step 05)
 SITE_AUDIT_RADIUS_CELLS = 5        # neighborhood radius in grid cells (5 km on 1-km grid)

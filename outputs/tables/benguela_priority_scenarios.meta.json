@@ -4,8 +4,9 @@
   "baseline_source": "file",
   "scenarios": [
     {
-      "id": "baseline",
-      "desc": "ACC+POP+DRT, rural-only, min crop 5%, 3x3 smooth, Top10%",
+      "id": "balanced",
+      "desc": "General-purpose baseline with no strong thematic emphasis. Additive aggregation with percentile selection for backward compatibility with pre-v2 framework output.",
+      "preset": "balanced",
       "use_components": [
         1,
         1,
@@ -14,11 +15,30 @@
         1
       ],
       "weights": {
-        "ACC": 0.5,
-        "POP": 0.3,
-        "VEG": 0.0,
-        "NTL": 0.0,
-        "DRT": 0.2
+        "ACC": 0.35,
+        "POP": 0.25,
+        "VEG": 0.2,
+        "NTL": 0.1,
+        "DRT": 0.1
+      },
+      "overlay_weights": {
+        "POV": 0.15,
+        "FOOD": 0.1,
+        "MTT": 0.1,
+        "RWI": 0.15
+      },
+      "v2_weights": {
+        "TT_HEALTH": 0.0,
+        "TT_EDUCATION": 0.0,
+        "BUILDING_DENSITY": 0.0,
+        "DRE_DEMAND": 0.0
+      },
+      "methodology": {
+        "aggregation": "additive",
+        "selection_method": "percentile",
+        "transforms": {},
+        "knockout_rules": {},
+        "hotspot_significance": null
       },
       "masks": {
         "require_rural": true,
@@ -31,56 +51,349 @@
         "min_cluster_cells": 30
       },
       "outputs": {
-        "mask_tif": "benguela_priority_mask_baseline.tif"
+        "mask_tif": "benguela_priority_mask_balanced.tif"
       }
     },
     {
-      "id": "no_drought",
-      "desc": "ACC+POP only; rural-only; min crop 5%; Top10%",
+      "id": "last_mile_access",
+      "desc": "Maximise reach to remote, underserved communities far from services.  Geometric aggregation ensures cells must perform across accessibility, poverty, AND facility distance.",
+      "preset": "last_mile_access",
       "use_components": [
         1,
         1,
         0,
         0,
+        1
+      ],
+      "weights": {
+        "ACC": 0.3,
+        "POP": 0.15,
+        "VEG": 0.0,
+        "NTL": 0.0,
+        "DRT": 0.1
+      },
+      "overlay_weights": {
+        "POV": 0.2,
+        "FOOD": 0.05,
+        "MTT": 0.1,
+        "RWI": 0.15
+      },
+      "v2_weights": {
+        "TT_HEALTH": 0.2,
+        "TT_EDUCATION": 0.15,
+        "BUILDING_DENSITY": 0.0,
+        "DRE_DEMAND": 0.1
+      },
+      "methodology": {
+        "aggregation": "geometric",
+        "selection_method": "hotspot",
+        "transforms": {
+          "ACC": {
+            "kind": "sigmoid",
+            "invert": true,
+            "a": 120.0,
+            "b": 0.025,
+            "c": 0.0,
+            "d": 0.0
+          },
+          "POP": {
+            "kind": "log",
+            "invert": false,
+            "a": 1.0,
+            "b": 99.0,
+            "c": 0.0,
+            "d": 0.0
+          },
+          "DRT": {
+            "kind": "threshold",
+            "invert": false,
+            "a": 3.0,
+            "b": 8.0,
+            "c": 0.0,
+            "d": 0.0
+          },
+          "TT_HEALTH": {
+            "kind": "sigmoid",
+            "invert": true,
+            "a": 60.0,
+            "b": 0.04,
+            "c": 0.0,
+            "d": 0.0
+          },
+          "TT_EDUCATION": {
+            "kind": "sigmoid",
+            "invert": true,
+            "a": 45.0,
+            "b": 0.04,
+            "c": 0.0,
+            "d": 0.0
+          },
+          "DRE_DEMAND": {
+            "kind": "linear",
+            "invert": false,
+            "a": 0.0,
+            "b": 1.0,
+            "c": 0.0,
+            "d": 0.0
+          }
+        },
+        "knockout_rules": {
+          "population": 50
+        },
+        "hotspot_significance": 0.05
+      },
+      "masks": {
+        "require_rural": true,
+        "min_cropland": 0.03
+      },
+      "smooth_radius_cells": 1,
+      "selection": {
+        "top_pct_cells": 0.12,
+        "top_km2": null,
+        "min_cluster_cells": 20
+      },
+      "outputs": {
+        "mask_tif": "benguela_priority_mask_last_mile_access.tif"
+      }
+    },
+    {
+      "id": "peri_urban_growth",
+      "desc": "Invest near urban centres to reduce delivery cost.  Building density and NTL trend drive selection of productive peri-urban agricultural land with infrastructure potential.",
+      "preset": "peri_urban_growth",
+      "use_components": [
+        1,
+        1,
+        0,
+        1,
         0
       ],
       "weights": {
-        "ACC": 0.7,
-        "POP": 0.3,
+        "ACC": 0.2,
+        "POP": 0.25,
         "VEG": 0.0,
-        "NTL": 0.0,
+        "NTL": 0.25,
         "DRT": 0.0
       },
-      "masks": {
-        "require_rural": true,
-        "min_cropland": 0.05
+      "overlay_weights": {
+        "POV": 0.05,
+        "FOOD": 0.05,
+        "MTT": 0.05,
+        "RWI": 0.1
       },
-      "smooth_radius_cells": 1,
+      "v2_weights": {
+        "TT_HEALTH": 0.0,
+        "TT_EDUCATION": 0.0,
+        "BUILDING_DENSITY": 0.2,
+        "DRE_DEMAND": 0.0
+      },
+      "methodology": {
+        "aggregation": "geometric",
+        "selection_method": "hotspot",
+        "transforms": {
+          "ACC": {
+            "kind": "sigmoid",
+            "invert": true,
+            "a": 60.0,
+            "b": 0.03,
+            "c": 0.0,
+            "d": 0.0
+          },
+          "NTL": {
+            "kind": "log",
+            "invert": false,
+            "a": 0.01,
+            "b": 95.0,
+            "c": 0.0,
+            "d": 0.0
+          },
+          "BUILDING_DENSITY": {
+            "kind": "log",
+            "invert": false,
+            "a": 1.0,
+            "b": 99.0,
+            "c": 0.0,
+            "d": 0.0
+          },
+          "POP": {
+            "kind": "log",
+            "invert": false,
+            "a": 1.0,
+            "b": 99.0,
+            "c": 0.0,
+            "d": 0.0
+          }
+        },
+        "knockout_rules": {
+          "cropland": 0.1,
+          "population": 100
+        },
+        "hotspot_significance": 0.05
+      },
+      "masks": {
+        "require_rural": false,
+        "min_cropland": 0.1
+      },
+      "smooth_radius_cells": 2,
       "selection": {
-        "top_pct_cells": 0.1,
+        "top_pct_cells": 0.08,
         "top_km2": null,
-        "min_cluster_cells": 30
+        "min_cluster_cells": 50
       },
       "outputs": {
-        "mask_tif": "benguela_priority_mask_no_drought.tif"
+        "mask_tif": "benguela_priority_mask_peri_urban_growth.tif"
       }
     },
     {
-      "id": "veg_signal",
-      "desc": "ACC+POP+VEG; rural-only; min crop 10%; Top10%",
+      "id": "food_security",
+      "desc": "Target food-insecure agricultural zones with high growing potential.  Growing season length and EVI productivity identify viable cropland; food-insecurity overlay ensures investment reaches those in greatest need.",
+      "preset": "food_security",
       "use_components": [
         1,
         1,
         1,
         0,
-        0
+        1
       ],
       "weights": {
-        "ACC": 0.5,
-        "POP": 0.3,
+        "ACC": 0.15,
+        "POP": 0.1,
+        "VEG": 0.25,
+        "NTL": 0.0,
+        "DRT": 0.15
+      },
+      "overlay_weights": {
+        "POV": 0.1,
+        "FOOD": 0.25,
+        "MTT": 0.05,
+        "RWI": 0.1
+      },
+      "v2_weights": {
+        "TT_HEALTH": 0.0,
+        "TT_EDUCATION": 0.0,
+        "BUILDING_DENSITY": 0.0,
+        "DRE_DEMAND": 0.0
+      },
+      "methodology": {
+        "aggregation": "geometric",
+        "selection_method": "hotspot",
+        "transforms": {
+          "VEG": {
+            "kind": "trapezoidal",
+            "invert": false,
+            "a": 90.0,
+            "b": 120.0,
+            "c": 270.0,
+            "d": 300.0
+          },
+          "DRT": {
+            "kind": "threshold",
+            "invert": false,
+            "a": 3.0,
+            "b": 10.0,
+            "c": 0.0,
+            "d": 0.0
+          },
+          "ACC": {
+            "kind": "sigmoid",
+            "invert": true,
+            "a": 120.0,
+            "b": 0.02,
+            "c": 0.0,
+            "d": 0.0
+          },
+          "FOOD": {
+            "kind": "linear",
+            "invert": false,
+            "a": 0.0,
+            "b": 1.0,
+            "c": 0.0,
+            "d": 0.0
+          }
+        },
+        "knockout_rules": {
+          "cropland": 0.1,
+          "gsl": 90
+        },
+        "hotspot_significance": 0.05
+      },
+      "masks": {
+        "require_rural": true,
+        "min_cropland": 0.2
+      },
+      "smooth_radius_cells": 1,
+      "selection": {
+        "top_pct_cells": 0.1,
+        "top_km2": null,
+        "min_cluster_cells": 40
+      },
+      "outputs": {
+        "mask_tif": "benguela_priority_mask_food_security.tif"
+      }
+    },
+    {
+      "id": "climate_resilience",
+      "desc": "Focus on climate-vulnerable areas using 65-year SPEI-12 drought characterisation and phenological trend analysis.  GSL trend identifies areas where growing seasons are shortening; greenup variability flags unreliable planting.",
+      "preset": "climate_resilience",
+      "use_components": [
+        1,
+        1,
+        1,
+        0,
+        1
+      ],
+      "weights": {
+        "ACC": 0.1,
+        "POP": 0.1,
         "VEG": 0.2,
         "NTL": 0.0,
-        "DRT": 0.0
+        "DRT": 0.3
+      },
+      "overlay_weights": {
+        "POV": 0.1,
+        "FOOD": 0.15,
+        "MTT": 0.05,
+        "RWI": 0.1
+      },
+      "v2_weights": {
+        "TT_HEALTH": 0.0,
+        "TT_EDUCATION": 0.0,
+        "BUILDING_DENSITY": 0.0,
+        "DRE_DEMAND": 0.0
+      },
+      "methodology": {
+        "aggregation": "geometric",
+        "selection_method": "hotspot",
+        "transforms": {
+          "DRT": {
+            "kind": "sigmoid",
+            "invert": false,
+            "a": 6.0,
+            "b": 0.5,
+            "c": 0.0,
+            "d": 0.0
+          },
+          "VEG": {
+            "kind": "trapezoidal",
+            "invert": false,
+            "a": 60.0,
+            "b": 100.0,
+            "c": 250.0,
+            "d": 320.0
+          },
+          "ACC": {
+            "kind": "linear",
+            "invert": true,
+            "a": 0.0,
+            "b": 240.0,
+            "c": 0.0,
+            "d": 0.0
+          }
+        },
+        "knockout_rules": {
+          "drought": 2,
+          "population": 30
+        },
+        "hotspot_significance": 0.05
       },
       "masks": {
         "require_rural": true,
@@ -93,38 +406,85 @@
         "min_cluster_cells": 30
       },
       "outputs": {
-        "mask_tif": "benguela_priority_mask_veg_signal.tif"
+        "mask_tif": "benguela_priority_mask_climate_resilience.tif"
       }
     },
     {
-      "id": "top_800km2",
-      "desc": "ACC+POP+DRT, rural-only; select fixed 800 km\u00b2; mild smooth",
+      "id": "connectivity",
+      "desc": "Strengthen economic corridors and market access.  NTL trend captures expanding electrification; building density proxies for emerging economic nodes.  Rural mask OFF.",
+      "preset": "connectivity",
       "use_components": [
         1,
         1,
         0,
-        0,
-        1
+        1,
+        0
       ],
       "weights": {
-        "ACC": 0.5,
-        "POP": 0.3,
+        "ACC": 0.35,
+        "POP": 0.15,
         "VEG": 0.0,
-        "NTL": 0.0,
-        "DRT": 0.2
+        "NTL": 0.2,
+        "DRT": 0.0
+      },
+      "overlay_weights": {
+        "POV": 0.05,
+        "FOOD": 0.05,
+        "MTT": 0.15,
+        "RWI": 0.1
+      },
+      "v2_weights": {
+        "TT_HEALTH": 0.0,
+        "TT_EDUCATION": 0.0,
+        "BUILDING_DENSITY": 0.1,
+        "DRE_DEMAND": 0.0
+      },
+      "methodology": {
+        "aggregation": "geometric",
+        "selection_method": "hotspot",
+        "transforms": {
+          "ACC": {
+            "kind": "sigmoid",
+            "invert": true,
+            "a": 90.0,
+            "b": 0.03,
+            "c": 0.0,
+            "d": 0.0
+          },
+          "NTL": {
+            "kind": "log",
+            "invert": false,
+            "a": 0.01,
+            "b": 95.0,
+            "c": 0.0,
+            "d": 0.0
+          },
+          "POP": {
+            "kind": "log",
+            "invert": false,
+            "a": 1.0,
+            "b": 99.0,
+            "c": 0.0,
+            "d": 0.0
+          }
+        },
+        "knockout_rules": {
+          "population": 100
+        },
+        "hotspot_significance": 0.05
       },
       "masks": {
-        "require_rural": true,
+        "require_rural": false,
         "min_cropland": 0.05
       },
-      "smooth_radius_cells": 1,
+      "smooth_radius_cells": 2,
       "selection": {
-        "top_pct_cells": null,
-        "top_km2": 800.0,
-        "min_cluster_cells": 30
+        "top_pct_cells": 0.08,
+        "top_km2": null,
+        "min_cluster_cells": 60
       },
       "outputs": {
-        "mask_tif": "benguela_priority_mask_top_800km2.tif"
+        "mask_tif": "benguela_priority_mask_connectivity.tif"
       }
     }
   ]

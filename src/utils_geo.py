@@ -883,3 +883,620 @@ def normalize_rwi_to_equity(rwi_da, clip_pct=(1, 99)):
     equity = 1.0 - scaled                 # 1 => poorer; 0 => wealthier
     equity.name = "rwi_equity01"
     return equity
+
+
+# ======================================================================
+# v2 — Fuzzy transforms, geometric aggregation, hotspot detection
+# ======================================================================
+#
+# References:
+#   Zadeh (1965): Fuzzy sets
+#   Jiang & Eastman (2000): Fuzzy measures in MCDA
+#   Getis & Ord (1992): Distance statistics for spatial association
+#   OECD/JRC (2008): Handbook on Constructing Composite Indicators
+
+def fuzzy_transform(da: xr.DataArray, spec) -> xr.DataArray:
+    """Apply a fuzzy membership transform to a DataArray.
+
+    Parameters
+    ----------
+    da : xr.DataArray
+        Raw indicator values.
+    spec : TransformSpec
+        Transform specification (from config).  Supports:
+        ``"sigmoid"``, ``"linear"``, ``"log"``, ``"trapezoidal"``,
+        ``"threshold"``.
+
+    Returns
+    -------
+    xr.DataArray
+        Suitability scores in [0, 1].
+    """
+    vals = da.astype("float64")
+
+    if spec.kind == "sigmoid":
+        # Logistic sigmoid: f(x) = 1 / (1 + exp(-b*(x - a)))
+        # a = inflection point, b = steepness
+        result = 1.0 / (1.0 + np.exp(-spec.b * (vals - spec.a)))
+
+    elif spec.kind == "linear":
+        # Classic min-max: a = lower, b = upper
+        result = (vals - spec.a) / (spec.b - spec.a + 1e-9)
+        result = result.clip(0.0, 1.0)
+
+    elif spec.kind == "log":
+        # Logarithmic: compresses high values.
+        # a = offset (added before log), b = cap percentile
+        offset = max(spec.a, 1e-6)
+        v = vals.clip(min=0) + offset
+        v_log = np.log(v)
+        # Determine cap from percentile of valid values
+        cap_pct = spec.b if spec.b > 0 else 99.0
+        finite = v_log.values[np.isfinite(v_log.values)]
+        if len(finite) > 0:
+            cap = np.percentile(finite, cap_pct)
+        else:
+            cap = 1.0
+        result = v_log / (cap + 1e-9)
+        result = result.clip(0.0, 1.0)
+
+    elif spec.kind == "trapezoidal":
+        # a = lower zero, b = lower one, c = upper one, d = upper zero
+        # Piece-wise: 0 → ramp → 1 → ramp → 0
+        result = xr.where(vals <= spec.a, 0.0,
+                 xr.where(vals <= spec.b, (vals - spec.a) / (spec.b - spec.a + 1e-9),
+                 xr.where(vals <= spec.c, 1.0,
+                 xr.where(vals <= spec.d, (spec.d - vals) / (spec.d - spec.c + 1e-9),
+                 0.0))))
+        result = result.clip(0.0, 1.0)
+
+    elif spec.kind == "threshold":
+        # Step with linear ramp: a = lower cutoff, b = upper saturation
+        result = (vals - spec.a) / (spec.b - spec.a + 1e-9)
+        result = result.clip(0.0, 1.0)
+
+    else:
+        raise ValueError(f"Unknown transform kind: {spec.kind!r}")
+
+    if spec.invert:
+        result = 1.0 - result
+
+    # Preserve NaN mask from input
+    result = result.where(np.isfinite(da))
+    return result
+
+
+def geometric_aggregate(
+    components: dict[str, xr.DataArray],
+    weights: dict[str, float],
+    knockout_rules: dict[str, float] | None = None,
+    knockout_values: dict[str, xr.DataArray] | None = None,
+    epsilon: float = 1e-6,
+) -> xr.DataArray:
+    """Weighted geometric mean with knockout constraints.
+
+    The geometric mean is non-compensatory: a cell scoring zero on
+    any dimension gets a score near zero, regardless of other
+    dimensions.  This matches investment logic — you cannot compensate
+    "no cropland" with "great road access".
+
+    Parameters
+    ----------
+    components : dict[str, xr.DataArray]
+        Transformed [0,1] suitability surfaces, keyed by alias.
+    weights : dict[str, float]
+        Positive weights (will be normalised to sum to 1).
+    knockout_rules : dict[str, float] | None
+        ``{alias: minimum_raw_value}`` — cells below threshold get score=0.
+        The *alias* keys refer to entries in *knockout_values*.
+    knockout_values : dict[str, xr.DataArray] | None
+        Raw (untransformed) indicator values for evaluating knockouts.
+        Keys should match knockout_rules keys.
+    epsilon : float
+        Floor added before log to avoid log(0).
+
+    Returns
+    -------
+    xr.DataArray
+        Composite score in [0, 1].
+
+    References
+    ----------
+    OECD/JRC (2008). Handbook on Constructing Composite Indicators, §2.3.
+    """
+    # Filter to available components with positive weight
+    available = {k: v for k, v in weights.items()
+                 if v > 0 and k in components and components[k] is not None}
+    if not available:
+        raise RuntimeError("No available components with positive weight.")
+
+    w_sum = sum(available.values())
+    w_norm = {k: v / w_sum for k, v in available.items()}
+
+    # Geometric mean via exp(Σ w_i * ln(x_i + ε))
+    log_sum = None
+    for key, w in w_norm.items():
+        da = components[key].clip(min=epsilon)  # floor to avoid log(0)
+        log_da = np.log(da) * w
+        log_sum = log_da if log_sum is None else log_sum + log_da
+
+    score = np.exp(log_sum).clip(0.0, 1.0)
+
+    # Apply knockout rules
+    if knockout_rules and knockout_values:
+        for alias, threshold in knockout_rules.items():
+            if alias in knockout_values and knockout_values[alias] is not None:
+                raw = knockout_values[alias]
+                score = score.where(raw >= threshold, other=0.0)
+
+    return score
+
+
+def getis_ord_gi_star(
+    score: xr.DataArray,
+    bandwidth_cells: int = 5,
+    significance: float = 0.05,
+) -> tuple[xr.DataArray, xr.DataArray]:
+    """Local Getis-Ord Gi* statistic for hotspot detection.
+
+    Identifies statistically significant spatial clusters of high
+    values.  Returns both the z-score surface and a binary hotspot mask.
+
+    Parameters
+    ----------
+    score : xr.DataArray
+        Continuous score surface (e.g., priority score 0–1).
+    bandwidth_cells : int
+        Radius of the spatial weights kernel (cells).  A square kernel
+        of (2*bw+1) × (2*bw+1) is used for computational efficiency.
+        5 cells ≈ 5 km on a 1-km grid.
+    significance : float
+        Two-sided p-value threshold.  0.05 → |z| ≥ 1.96.
+
+    Returns
+    -------
+    z_scores : xr.DataArray
+        Gi* z-score per cell.
+    hotspot_mask : xr.DataArray
+        Binary mask: 1 = significant hotspot (z ≥ z_crit), 0 otherwise.
+
+    References
+    ----------
+    Getis, A. & Ord, J. K. (1992). The analysis of spatial association
+    by use of distance statistics. *Geographical Analysis*, 24(3).
+    """
+    from scipy.ndimage import uniform_filter
+    from scipy.stats import norm
+
+    vals = score.values.astype("float64")
+    mask = np.isfinite(vals)
+
+    # Replace NaN with 0 for convolution; track valid counts
+    v = np.where(mask, vals, 0.0)
+    m = mask.astype("float64")
+
+    kernel_size = 2 * bandwidth_cells + 1
+
+    # Sum of values and count of valid cells in neighbourhood
+    sum_wj_xj = uniform_filter(v, size=kernel_size, mode="constant") * (kernel_size ** 2)
+    sum_wj    = uniform_filter(m, size=kernel_size, mode="constant") * (kernel_size ** 2)
+
+    # Global statistics (over all valid cells)
+    n = float(mask.sum())
+    if n < 10:
+        log.warning("Gi*: fewer than 10 valid cells; returning empty mask.")
+        z = xr.DataArray(np.full_like(vals, np.nan), coords=score.coords, dims=score.dims)
+        return z, xr.DataArray(np.zeros_like(vals, dtype="uint8"), coords=score.coords, dims=score.dims)
+
+    x_bar = float(np.nanmean(vals[mask]))
+    s = float(np.nanstd(vals[mask]))
+    if s < 1e-12:
+        z_arr = np.zeros_like(vals)
+    else:
+        # Gi* = (Σwj·xj - x̄·Σwj) / (s · √((n·Σwj² - (Σwj)²) / (n-1)))
+        # For uniform weights, Σwj² = Σwj (each w=1 inside kernel)
+        numerator = sum_wj_xj - x_bar * sum_wj
+        denominator = s * np.sqrt(
+            np.maximum((n * sum_wj - sum_wj ** 2) / (n - 1.0), 1e-12)
+        )
+        z_arr = np.where(mask, numerator / (denominator + 1e-12), np.nan)
+
+    z_crit = norm.ppf(1.0 - significance / 2.0)  # two-sided
+
+    z_da = xr.DataArray(z_arr, coords=score.coords, dims=score.dims)
+    z_da.name = "gi_star_z"
+
+    hot = np.where(mask & (z_arr >= z_crit), 1, 0).astype("uint8")
+    hot_da = xr.DataArray(hot, coords=score.coords, dims=score.dims)
+    hot_da.name = "hotspot_mask"
+
+    n_hot = int(hot.sum())
+    pct_hot = 100.0 * n_hot / n if n > 0 else 0.0
+    log.info("Gi* hotspot: %d cells (%.1f%%) at p<%.3f (z≥%.2f, bw=%d)",
+             n_hot, pct_hot, significance, z_crit, bandwidth_cells)
+
+    return z_da, hot_da
+
+
+def zonal_stats_from_hires(
+    src_path: str | Path,
+    template: xr.DataArray,
+    stats: tuple[str, ...] = ("mean",),
+    nodata: float = -9999.0,
+    resampling: str = "average",
+) -> dict[str, xr.DataArray]:
+    """Compute per-cell summary statistics from a higher-resolution raster.
+
+    Instead of naive resampling (which loses information), this
+    function computes aggregated statistics within each template cell
+    using rasterio's built-in resampling methods.
+
+    Parameters
+    ----------
+    src_path : Path
+        High-resolution input raster.
+    template : xr.DataArray
+        Target 1-km grid.
+    stats : tuple of str
+        Statistics to compute.  Available:
+        ``"mean"`` (default), ``"max"``, ``"min"``, ``"std"``,
+        ``"sum"``, ``"count"`` (count of valid subpixels),
+        ``"fraction"`` (fraction of subpixels with value > 0).
+    nodata : float
+        Nodata value in source raster.
+    resampling : str
+        Base resampling method for average aggregation.
+
+    Returns
+    -------
+    dict[str, xr.DataArray]
+        One DataArray per requested statistic, aligned to template.
+    """
+    results = {}
+    p = Path(src_path)
+    if not p.exists():
+        log.warning("zonal_stats_from_hires: file not found: %s", p)
+        return results
+
+    src_da = rxr.open_rasterio(p, masked=True).squeeze()
+    if nodata is not None:
+        src_da = src_da.where(src_da != nodata)
+
+    for stat in stats:
+        if stat == "mean":
+            agg = src_da.rio.reproject_match(
+                template, resampling=_to_resampling("average"))
+            results["mean"] = agg
+
+        elif stat == "max":
+            agg = src_da.rio.reproject_match(
+                template, resampling=_to_resampling("max"))
+            results["max"] = agg
+
+        elif stat == "min":
+            agg = src_da.rio.reproject_match(
+                template, resampling=_to_resampling("min"))
+            results["min"] = agg
+
+        elif stat == "sum":
+            agg = src_da.rio.reproject_match(
+                template, resampling=_to_resampling("sum"))
+            results["sum"] = agg
+
+        elif stat == "fraction":
+            # Fraction of subpixels with value > 0 (e.g., cropland binary)
+            binary = xr.where(src_da > 0, 1.0, 0.0).astype("float32")
+            binary = binary.rio.write_crs(src_da.rio.crs)
+            binary = binary.rio.write_transform(src_da.rio.transform())
+            agg = binary.rio.reproject_match(
+                template, resampling=_to_resampling("average"))
+            results["fraction"] = agg.clip(0.0, 1.0)
+
+        elif stat == "count":
+            # Count of valid (non-NaN) subpixels
+            valid = xr.where(np.isfinite(src_da), 1.0, 0.0).astype("float32")
+            valid = valid.rio.write_crs(src_da.rio.crs)
+            valid = valid.rio.write_transform(src_da.rio.transform())
+            agg = valid.rio.reproject_match(
+                template, resampling=_to_resampling("sum"))
+            results["count"] = agg
+
+        elif stat == "std":
+            # Std dev approximated via: std ≈ √(E[x²] - E[x]²)
+            mean_val = src_da.rio.reproject_match(
+                template, resampling=_to_resampling("average"))
+            sq = (src_da ** 2)
+            sq = sq.rio.write_crs(src_da.rio.crs)
+            sq = sq.rio.write_transform(src_da.rio.transform())
+            mean_sq = sq.rio.reproject_match(
+                template, resampling=_to_resampling("average"))
+            variance = (mean_sq - mean_val ** 2).clip(min=0)
+            results["std"] = np.sqrt(variance)
+
+        else:
+            log.warning("zonal_stats_from_hires: unknown stat '%s'", stat)
+
+    return results
+
+
+def cost_distance_to_nearest(
+    friction_path: str | Path,
+    points_gdf: gpd.GeoDataFrame,
+    template: xr.DataArray,
+    max_minutes: float = 360.0,
+) -> xr.DataArray:
+    """Travel time from every cell to nearest facility using friction surface.
+
+    Uses scikit-image's MCP (Minimum Cost Path) for efficient cost-distance
+    calculation over a friction surface.
+
+    Parameters
+    ----------
+    friction_path : Path
+        Friction surface raster (minutes per meter).
+    points_gdf : GeoDataFrame
+        Facility locations (Point geometry).
+    template : xr.DataArray
+        Target grid for output alignment.
+    max_minutes : float
+        Cap travel time at this value.
+
+    Returns
+    -------
+    xr.DataArray
+        Travel time in minutes from each cell to nearest facility,
+        aligned to template grid.
+    """
+    from skimage.graph import MCP_Geometric
+
+    p = Path(friction_path)
+    if not p.exists():
+        log.warning("cost_distance: friction raster not found: %s", p)
+        return None
+    if points_gdf is None or len(points_gdf) == 0:
+        log.warning("cost_distance: no facility points provided.")
+        return None
+
+    # Open friction surface and align to template
+    friction_da = rxr.open_rasterio(p, masked=True).squeeze()
+    friction_da = ensure_aligned(friction_da, template, resampling="bilinear")
+
+    # Friction is minutes/meter; multiply by cell resolution to get minutes/cell
+    tf = template.rio.transform()
+    cell_m = abs(tf.a) * 111_320  # approximate meters per degree at equator
+    # More accurate: use latitude-aware conversion
+    lats = template.y.values if hasattr(template, 'y') else np.zeros(1)
+    mean_lat = float(np.nanmean(lats))
+    cell_m_x = abs(tf.a) * 111_320 * np.cos(np.radians(mean_lat))
+    cell_m_y = abs(tf.e) * 111_320
+    cell_m_avg = (cell_m_x + cell_m_y) / 2.0
+
+    # Cost array: minutes to traverse each cell
+    cost_arr = friction_da.values.astype("float64") * cell_m_avg
+    cost_arr = np.where(np.isfinite(cost_arr) & (cost_arr > 0), cost_arr, 1e6)
+
+    # Convert facility points to pixel coordinates
+    inv_transform = ~template.rio.transform()
+    pts_crs = points_gdf.to_crs(template.rio.crs)
+    starts = []
+    for _, row in pts_crs.iterrows():
+        geom = row.geometry
+        if geom is None or geom.is_empty:
+            continue
+        col, row_px = inv_transform * (geom.x, geom.y)
+        r, c = int(round(row_px)), int(round(col))
+        if 0 <= r < cost_arr.shape[0] and 0 <= c < cost_arr.shape[1]:
+            starts.append((r, c))
+
+    if not starts:
+        log.warning("cost_distance: no facility points fall within grid.")
+        return None
+
+    log.info("cost_distance: %d facilities → MCP over %s grid",
+             len(starts), cost_arr.shape)
+
+    # MCP: find minimum cost from ANY start point to all cells
+    mcp = MCP_Geometric(cost_arr, fully_connected=True)
+    cum_cost, _ = mcp.find_costs(starts)
+
+    # Cap at max_minutes
+    cum_cost = np.where(cum_cost > max_minutes, np.nan, cum_cost)
+    cum_cost = np.where(cum_cost >= 1e5, np.nan, cum_cost)  # mask unreachable
+
+    result = xr.DataArray(
+        cum_cost.astype("float32"),
+        coords=template.coords,
+        dims=template.dims,
+    )
+    result = result.rio.write_crs(template.rio.crs)
+    result = result.rio.write_transform(template.rio.transform())
+    result.name = "cost_distance_minutes"
+
+    valid = np.isfinite(result.values).sum()
+    log.info("cost_distance: %d reachable cells (mean=%.1f min)",
+             valid, float(np.nanmean(result.values)))
+
+    return result
+
+
+def point_density_in_cells(
+    points_gdf: gpd.GeoDataFrame,
+    template: xr.DataArray,
+) -> xr.DataArray:
+    """Count point features per template grid cell.
+
+    Parameters
+    ----------
+    points_gdf : GeoDataFrame
+        Point features to count.
+    template : xr.DataArray
+        Target grid.
+
+    Returns
+    -------
+    xr.DataArray
+        Integer count of points per cell.
+    """
+    if points_gdf is None or len(points_gdf) == 0:
+        return xr.DataArray(
+            np.zeros(template.shape, dtype="int32"),
+            coords=template.coords, dims=template.dims,
+        )
+
+    pts = points_gdf.to_crs(template.rio.crs)
+    tf = template.rio.transform()
+    inv_tf = ~tf
+    h, w = template.shape[-2], template.shape[-1]
+
+    counts = np.zeros((h, w), dtype="int32")
+    for geom in pts.geometry:
+        if geom is None or geom.is_empty:
+            continue
+        col, row = inv_tf * (geom.x, geom.y)
+        r, c = int(row), int(col)
+        if 0 <= r < h and 0 <= c < w:
+            counts[r, c] += 1
+
+    result = xr.DataArray(counts, coords=template.coords, dims=template.dims)
+    result = result.rio.write_crs(template.rio.crs)
+    result = result.rio.write_transform(tf)
+    result.name = "point_count"
+    return result
+
+
+def building_density_in_cells(
+    buildings_gdf: gpd.GeoDataFrame,
+    template: xr.DataArray,
+    area_col: str = "area_in_me",
+) -> dict[str, xr.DataArray]:
+    """Compute building statistics per template grid cell.
+
+    Parameters
+    ----------
+    buildings_gdf : GeoDataFrame
+        Building footprint polygons (Google Open Buildings or similar).
+    template : xr.DataArray
+        Target grid.
+    area_col : str
+        Column containing building area in square meters.
+
+    Returns
+    -------
+    dict[str, xr.DataArray]
+        ``"count"``   — number of buildings per cell
+        ``"area"``    — total building area (m²) per cell
+        ``"density"`` — building area fraction (area / cell_area)
+    """
+    h, w = template.shape[-2], template.shape[-1]
+    tf = template.rio.transform()
+    inv_tf = ~tf
+
+    count_arr = np.zeros((h, w), dtype="int32")
+    area_arr = np.zeros((h, w), dtype="float64")
+
+    if buildings_gdf is not None and len(buildings_gdf) > 0:
+        bldg = buildings_gdf.to_crs(template.rio.crs)
+
+        # Use centroid for cell assignment (faster than spatial join)
+        centroids = bldg.geometry.centroid
+        has_area = area_col in bldg.columns
+
+        for idx, centroid in enumerate(centroids):
+            if centroid is None or centroid.is_empty:
+                continue
+            col, row = inv_tf * (centroid.x, centroid.y)
+            r, c = int(row), int(col)
+            if 0 <= r < h and 0 <= c < w:
+                count_arr[r, c] += 1
+                if has_area:
+                    a = bldg.iloc[idx][area_col]
+                    if a is not None and np.isfinite(float(a)):
+                        area_arr[r, c] += float(a)
+
+    # Cell area in m²
+    mean_lat = float(np.nanmean(template.y.values)) if hasattr(template, 'y') else 0.0
+    cell_m_x = abs(tf.a) * 111_320 * np.cos(np.radians(mean_lat))
+    cell_m_y = abs(tf.e) * 111_320
+    cell_area_m2 = cell_m_x * cell_m_y
+
+    density_arr = area_arr / max(cell_area_m2, 1.0)
+
+    def _make_da(arr, name):
+        da = xr.DataArray(arr.astype("float32"), coords=template.coords, dims=template.dims)
+        da = da.rio.write_crs(template.rio.crs)
+        da = da.rio.write_transform(tf)
+        da.name = name
+        return da
+
+    return {
+        "count": _make_da(count_arr, "building_count"),
+        "area": _make_da(area_arr, "building_area_m2"),
+        "density": _make_da(density_arr, "building_density"),
+    }
+
+
+def dre_demand_in_cells(
+    dre_gdf: gpd.GeoDataFrame,
+    template: xr.DataArray,
+    pop_col: str = "population",
+    demand_col: str = "demand",
+) -> dict[str, xr.DataArray]:
+    """Compute DRE settlement demand statistics per template grid cell.
+
+    Parameters
+    ----------
+    dre_gdf : GeoDataFrame
+        DRE Atlas settlement polygons with attributes.
+    template : xr.DataArray
+        Target grid.
+    pop_col : str
+        Column for population count.
+    demand_col : str
+        Column for energy demand.
+
+    Returns
+    -------
+    dict[str, xr.DataArray]
+        ``"population"`` — total DRE settlement population per cell
+        ``"demand"``     — total energy demand per cell
+    """
+    h, w = template.shape[-2], template.shape[-1]
+    tf = template.rio.transform()
+    inv_tf = ~tf
+
+    pop_arr = np.zeros((h, w), dtype="float64")
+    demand_arr = np.zeros((h, w), dtype="float64")
+
+    if dre_gdf is not None and len(dre_gdf) > 0:
+        dre = dre_gdf.to_crs(template.rio.crs)
+        centroids = dre.geometry.centroid
+
+        has_pop = pop_col in dre.columns
+        has_dem = demand_col in dre.columns
+
+        for idx, centroid in enumerate(centroids):
+            if centroid is None or centroid.is_empty:
+                continue
+            col, row = inv_tf * (centroid.x, centroid.y)
+            r, c = int(row), int(col)
+            if 0 <= r < h and 0 <= c < w:
+                if has_pop:
+                    v = dre.iloc[idx][pop_col]
+                    if v is not None and np.isfinite(float(v)):
+                        pop_arr[r, c] += float(v)
+                if has_dem:
+                    v = dre.iloc[idx][demand_col]
+                    if v is not None and np.isfinite(float(v)):
+                        demand_arr[r, c] += float(v)
+
+    def _make_da(arr, name):
+        da = xr.DataArray(arr.astype("float32"), coords=template.coords, dims=template.dims)
+        da = da.rio.write_crs(template.rio.crs)
+        da = da.rio.write_transform(tf)
+        da.name = name
+        return da
+
+    return {
+        "population": _make_da(pop_arr, "dre_population"),
+        "demand": _make_da(demand_arr, "dre_demand"),
+    }

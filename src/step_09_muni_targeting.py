@@ -73,6 +73,7 @@ from config import (
     AOI, PATHS, PARAMS, get_logger, out_t,
     muni_path_for, ADMIN2_THEMES,
     MUNI_TT_FIELD_MINUTES,
+    Params, ThematicPreset, PRESETS, ACTIVE_PRESET, preset_to_params,
 )
 from utils_geo import cell_area_km2_latlon, write_gtiff_masked, open_and_align
 
@@ -229,13 +230,26 @@ def _minmax(series: pd.Series) -> pd.Series:
 
 # ------------------------------- main ----------------------------------------
 
-def main() -> None:
+def main(params: Params | None = None) -> None:
     """
     Build admin2 targeting table by combining RAPP-wide indicators with raster KPIs,
     then write {AOI}_priority_muni_rank.csv sorted by a transparent composite score.
     """
+    # Resolve preset → params
+    if params is None:
+        preset = PRESETS.get(ACTIVE_PRESET, PRESETS["balanced"])
+        params = preset_to_params(preset)
+        log.info("Preset: %s — %s", preset.name, preset.description)
+    else:
+        preset = None
+        # Try to find matching preset for metadata
+        for p in PRESETS.values():
+            if p.name == getattr(params, "_preset_name", None):
+                preset = p
+                break
+
     # Template grid
-    T = rxr.open_rasterio(PARAMS.TARGET_GRID, masked=True).squeeze()
+    T = rxr.open_rasterio(params.TARGET_GRID, masked=True).squeeze()
     tf = T.rio.transform()
     resx, resy = abs(tf.a), abs(tf.e)
     log.info(f"Template grid | CRS={T.rio.crs} | size={T.rio.height}x{T.rio.width} | cell={resx:.4f}x{resy:.4f}")
@@ -258,6 +272,15 @@ def main() -> None:
     grid   = _open_align(PATHS.OUT_R / f"{AOI}_elec_grid_1km.tif", T, "nearest")
     rural  = _open_align(PATHS.OUT_R / f"{AOI}_rural_1km.tif", T, "nearest")
     prio   = _open_align(PATHS.OUT_R / f"{AOI}_priority_top10_mask.tif", T, "nearest")  # may be None
+
+    # v2 layers (optional — from Step 00 v2 pipeline)
+    from config import out_r as _out_r
+    tt_health  = _open_align(_out_r("tt_health_motorised_1km"), T, "bilinear")
+    tt_edu     = _open_align(_out_r("tt_education_motorised_1km"), T, "bilinear")
+    bldg_dens  = _open_align(_out_r("building_density_1km"), T, "bilinear")
+    dre_demand = _open_align(_out_r("dre_demand_density_1km"), T, "bilinear")
+    drought    = _open_align(_out_r("drought_1km"), T, "bilinear")
+    gsl_median = _open_align(_out_r("gsl_median_1km"), T, "bilinear")
 
     if pop is None or cropf is None or rural is None:
         raise RuntimeError("Missing required rasters: pop_1km, cropland_fraction_1km, rural_1km")
@@ -295,6 +318,43 @@ def main() -> None:
     else:
         rwi_mean_df = pd.DataFrame({"ADM2_label": [], "rwi_mean": []})
 
+    # --- v2 indicator aggregations ---
+    # Travel time to health (mean minutes per muni)
+    if tt_health is not None:
+        tt_health_df = _groupby_sum_mean(labels, tt_health, how="mean").rename(columns={"val": "tt_health_mean"})
+    else:
+        tt_health_df = pd.DataFrame({"ADM2_label": [], "tt_health_mean": []})
+
+    # Travel time to education (mean minutes per muni)
+    if tt_edu is not None:
+        tt_edu_df = _groupby_sum_mean(labels, tt_edu, how="mean").rename(columns={"val": "tt_edu_mean"})
+    else:
+        tt_edu_df = pd.DataFrame({"ADM2_label": [], "tt_edu_mean": []})
+
+    # Building density (mean per muni)
+    if bldg_dens is not None:
+        bldg_df = _groupby_sum_mean(labels, bldg_dens, how="mean").rename(columns={"val": "building_density_mean"})
+    else:
+        bldg_df = pd.DataFrame({"ADM2_label": [], "building_density_mean": []})
+
+    # DRE demand (sum per muni — total demand in municipality)
+    if dre_demand is not None:
+        dre_df = _groupby_sum_mean(labels, dre_demand, how="sum").rename(columns={"val": "dre_demand_total"})
+    else:
+        dre_df = pd.DataFrame({"ADM2_label": [], "dre_demand_total": []})
+
+    # Drought events (mean per muni)
+    if drought is not None:
+        drought_df = _groupby_sum_mean(labels, drought, how="mean").rename(columns={"val": "drought_events_mean"})
+    else:
+        drought_df = pd.DataFrame({"ADM2_label": [], "drought_events_mean": []})
+
+    # GSL median (mean per muni — average growing season length)
+    if gsl_median is not None:
+        gsl_df = _groupby_sum_mean(labels, gsl_median, how="mean").rename(columns={"val": "gsl_median_mean"})
+    else:
+        gsl_df = pd.DataFrame({"ADM2_label": [], "gsl_median_mean": []})
+
     # Merge all stats
     stats = (
         area_df.merge(pop_df, on="ADM2_label", how="outer")
@@ -305,7 +365,12 @@ def main() -> None:
                .merge(rur_df, on="ADM2_label", how="outer")
                .merge(pr_df, on="ADM2_label", how="outer")
                .merge(rwi_mean_df, on="ADM2_label", how="outer")
-
+               .merge(tt_health_df, on="ADM2_label", how="outer")
+               .merge(tt_edu_df, on="ADM2_label", how="outer")
+               .merge(bldg_df, on="ADM2_label", how="outer")
+               .merge(dre_df, on="ADM2_label", how="outer")
+               .merge(drought_df, on="ADM2_label", how="outer")
+               .merge(gsl_df, on="ADM2_label", how="outer")
     )
 
     # Attach names/codes
@@ -392,10 +457,50 @@ def main() -> None:
     if "rwi_mean" in stats.columns:
         comp_parts["rwi_inverse"] = _minmax(-stats["rwi_mean"])
 
-    # combine (simple mean of available components)
+    # --- v2 indicators for composite score ---
+    # Travel time to health: higher => worse access => higher priority
+    if "tt_health_mean" in stats.columns:
+        comp_parts["tt_health"] = _minmax(stats["tt_health_mean"])
+    # Travel time to education: higher => worse access => higher priority
+    if "tt_edu_mean" in stats.columns:
+        comp_parts["tt_edu"] = _minmax(stats["tt_edu_mean"])
+    # Building density: lower => less infrastructure => higher priority (for last-mile)
+    # Note: direction depends on preset; for peri-urban it flips. Using raw value;
+    # preset weights handle the emphasis.
+    if "building_density_mean" in stats.columns:
+        comp_parts["building_density"] = _minmax(stats["building_density_mean"])
+    # DRE demand: higher => more unserved energy need => higher priority
+    if "dre_demand_total" in stats.columns:
+        comp_parts["dre_demand"] = _minmax(stats["dre_demand_total"])
+    # Drought events: higher => more climate-vulnerable => higher priority
+    if "drought_events_mean" in stats.columns:
+        comp_parts["drought_events"] = _minmax(stats["drought_events_mean"])
+    # GSL median: context-dependent; included for preset-weighted use
+    if "gsl_median_mean" in stats.columns:
+        comp_parts["gsl_median"] = _minmax(stats["gsl_median_mean"])
+
+    # Combine: weighted if preset provides MUNI_INDICATOR_WEIGHTS, else equal-weight mean
+    muni_weights = preset.MUNI_INDICATOR_WEIGHTS if preset else None
     if comp_parts:
         comp_df = pd.DataFrame(comp_parts)
-        stats["score"] = comp_df.mean(axis=1).fillna(0.0)
+        if muni_weights:
+            # Use only indicators present in both comp_parts and the weight dict
+            active = {k: muni_weights[k] for k in comp_df.columns if k in muni_weights}
+            if active:
+                w_arr = np.array([active.get(c, 0.0) for c in comp_df.columns])
+                w_sum = w_arr.sum()
+                if w_sum > 0:
+                    stats["score"] = comp_df.mul(w_arr, axis=1).sum(axis=1).div(w_sum).fillna(0.0)
+                else:
+                    stats["score"] = comp_df.mean(axis=1).fillna(0.0)
+                log.info("Composite score: weighted (%d indicators, total weight=%.2f)",
+                         len(active), w_sum)
+            else:
+                stats["score"] = comp_df.mean(axis=1).fillna(0.0)
+                log.info("Composite score: equal-weight (no matching weight keys)")
+        else:
+            stats["score"] = comp_df.mean(axis=1).fillna(0.0)
+            log.info("Composite score: equal-weight mean (%d indicators)", len(comp_parts))
     else:
         stats["score"] = 0.0
 
@@ -418,6 +523,11 @@ def main() -> None:
         out_cols.append(MUNI_TT_FIELD_MINUTES)
     if "rwi_mean" in stats.columns:
         out_cols.append("rwi_mean")
+    # v2 indicators
+    for c in ("tt_health_mean", "tt_edu_mean", "building_density_mean",
+              "dre_demand_total", "drought_events_mean", "gsl_median_mean"):
+        if c in stats.columns:
+            out_cols.append(c)
 
     out_cols.append("score")
 
@@ -431,12 +541,15 @@ def main() -> None:
     log.info(f"Saved municipality targeting table → {Path(out_csv).name} | rows={len(out)}")
 
     # --- Benefit incidence curve & equity index ----------------------------
-    _benefit_incidence(out, out_csv)
+    benefit_proxy = preset.BENEFIT_PROXY if preset else "pct_priority"
+    _benefit_incidence(out, out_csv, benefit_col=benefit_proxy)
 
     log.info("Step 09 complete.")
 
 
-def _benefit_incidence(df: pd.DataFrame, base_csv: Path) -> None:
+def _benefit_incidence(
+    df: pd.DataFrame, base_csv: Path, benefit_col: str = "pct_priority",
+) -> None:
     """
     Compute a benefit incidence curve and a summary equity index.
 
@@ -444,8 +557,10 @@ def _benefit_incidence(df: pd.DataFrame, base_csv: Path) -> None:
     --------
     Municipalities are ranked from *poorest to richest* using ``poverty_rural``
     (higher value = poorer). Cumulative share of population is plotted against
-    cumulative share of *benefit* (``pct_priority`` — the share of the
+    cumulative share of *benefit* (default ``pct_priority`` — the share of the
     municipality that falls within the priority investment zone from Step 07).
+    The benefit column can be overridden via the ``benefit_col`` parameter,
+    which is driven by the active ThematicPreset's BENEFIT_PROXY field.
 
     If benefits are perfectly pro-poor, the curve sits above the 45-degree line.
     We summarise this with a scalar **concentration index** (CI):
@@ -456,13 +571,21 @@ def _benefit_incidence(df: pd.DataFrame, base_csv: Path) -> None:
       - {AOI}_benefit_incidence.csv   (columns: rank, cum_pop_share, cum_benefit_share)
       - {AOI}_equity_summary.csv      (concentration_index, interpretation)
     """
-    need = {"poverty_rural", "pop_total", "pct_priority"}
+    # Validate benefit_col exists; fall back to pct_priority
+    if benefit_col not in df.columns:
+        if benefit_col != "pct_priority":
+            log.warning("BENEFIT_PROXY '%s' not in dataframe; falling back to 'pct_priority'",
+                        benefit_col)
+        benefit_col = "pct_priority"
+
+    need = {"poverty_rural", "pop_total", benefit_col}
     if not need.issubset(df.columns):
         missing = need - set(df.columns)
         log.warning("Benefit incidence skipped (missing columns: %s)", missing)
         return
 
-    bi = df[["ADM2CD_c", "NAM_2", "poverty_rural", "pop_total", "pct_priority"]].dropna().copy()
+    bi = df[["ADM2CD_c", "NAM_2", "poverty_rural", "pop_total", benefit_col]].dropna().copy()
+    log.info("Benefit proxy: '%s'", benefit_col)
     if bi.empty or bi["pop_total"].sum() <= 0:
         log.warning("Benefit incidence skipped (no valid data).")
         return
@@ -471,8 +594,8 @@ def _benefit_incidence(df: pd.DataFrame, base_csv: Path) -> None:
     bi.sort_values("poverty_rural", ascending=False, inplace=True)
     bi.reset_index(drop=True, inplace=True)
 
-    # Weighted benefit = pop * pct_priority (proxy for beneficiary-pop in priority zone)
-    bi["benefit"] = bi["pop_total"] * bi["pct_priority"].clip(lower=0)
+    # Weighted benefit = pop * benefit_col (proxy for beneficiary-pop in priority zone)
+    bi["benefit"] = bi["pop_total"] * bi[benefit_col].clip(lower=0)
 
     total_benefit = bi["benefit"].sum()
 

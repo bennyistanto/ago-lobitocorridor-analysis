@@ -1,11 +1,11 @@
 Province (AOI),Site ID,Site type,Population within 60 min,Cropland (km²) within 60 min,% of provincial population within 60 min of this site
-Benguela,site_24,unknown,1654574,34.65,50.57
-Benguela,site_1,unknown,1643762,41.9,50.24
-Benguela,site_19,unknown,961441,147.34,29.39
-Benguela,site_26,unknown,393440,816.4,12.03
-Benguela,site_25,unknown,393440,816.4,12.03
-Benguela,site_22,unknown,240769,456.21,7.36
-Benguela,site_21,unknown,175871,502.51,5.38
-Benguela,site_15,unknown,167291,77.6,5.11
-Benguela,site_20,unknown,166425,296.0,5.09
-Benguela,site_13,unknown,134638,86.88,4.12
+Benguela,site_23,unknown,1654574,122.19,50.57
+Benguela,site_1,unknown,1643762,146.66,50.24
+Benguela,site_19,unknown,961441,401.12,29.39
+Benguela,site_24,unknown,393440,1520.58,12.03
+Benguela,site_25,unknown,393440,1520.58,12.03
+Benguela,site_22,unknown,240769,958.84,7.36
+Benguela,site_21,unknown,175871,1043.1,5.38
+Benguela,site_15,unknown,167291,235.29,5.11
+Benguela,site_20,unknown,166425,566.93,5.09
+Benguela,site_13,unknown,134638,262.01,4.12

@@ -5,6 +5,6 @@
 "features": [
 { "type": "Feature", "properties": { "no": 1, "prov": "Benguela", "muni": "Catumbela", "sector": "Agro-pecuária", "project": "Intervenção nas valas de irrigação do perímetro agrário da Catumbela", "lat": -12.430235, "lon": 13.502981, "site_index": 1, "pop_60min": 1643761.5, "rank_60min": 2 }, "geometry": { "type": "Point", "coordinates": [ 13.502981, -12.430235 ] } },
 { "type": "Feature", "properties": { "no": 4, "prov": "Benguela", "muni": "Lobito", "sector": "Agro-pecuária", "project": "Construção de um dique que vai alimentar as valas de irrigação do Culango numa extensão de 8 km de valas", "lat": -12.30325, "lon": 13.8477, "site_index": 19, "pop_60min": 961440.5625, "rank_60min": 3 }, "geometry": { "type": "Point", "coordinates": [ 13.8477, -12.30325 ] } },
-{ "type": "Feature", "properties": { "no": 9, "prov": "Benguela", "muni": "Benguela", "sector": "Vias de Acesso", "project": "Reabilitação da via de acesso ao bairro Capilongo", "lat": -12.60254167, "lon": 13.48618333, "site_index": 24, "pop_60min": 1654574.375, "rank_60min": 1 }, "geometry": { "type": "Point", "coordinates": [ 13.48618333, -12.60254167 ] } }
+{ "type": "Feature", "properties": { "no": 8, "prov": "Benguela", "muni": "Catengue", "sector": "Energia", "project": "Construção de uma central Híbrida (5 MW)", "lat": 0.0, "lon": 0.0, "site_index": 23, "pop_60min": 1654574.375, "rank_60min": 1 }, "geometry": { "type": "Point", "coordinates": [ -1.7976931348623157e+308, -1.7976931348623157e+308 ] } }
 ]
 }

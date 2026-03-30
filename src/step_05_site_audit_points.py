@@ -113,6 +113,28 @@ def main() -> None:
 
     _assert_same_shape(T, veg, ntl, drt, clp, cl_frac, elg, roads)
 
+    # --- v2 optional layers ---
+    def _try_open(name):
+        p = out_r(name)
+        try:
+            da = open_template(p)
+            _assert_same_shape(T, da)
+            return da
+        except Exception:
+            return None
+
+    tt_health_da = _try_open("tt_health_motorised_1km")
+    tt_edu_da    = _try_open("tt_education_motorised_1km")
+    bldg_dens_da = _try_open("building_density_1km")
+    gsl_da       = _try_open("gsl_median_1km")
+    spei_da      = _try_open("spei12_num_events_1km")
+
+    v2_names = {"tt_health": tt_health_da, "tt_edu": tt_edu_da,
+                "bldg_dens": bldg_dens_da, "gsl": gsl_da, "spei": spei_da}
+    v2_present = [k for k, v in v2_names.items() if v is not None]
+    if v2_present:
+        log.info("v2 layers for site audit: %s", ", ".join(v2_present))
+
     tf = T.rio.transform()
     resx, resy = abs(tf.a), abs(tf.e)
     log.info(
@@ -220,6 +242,18 @@ def main() -> None:
             "electrified_share_5km": (float(elg_nei[r, c]) / ker_cells) if ker_cells > 0 else np.nan,
             "near_road_flag": int(np.nan_to_num(roads.values[r, c], nan=0)),
         }
+
+        # v2 point-sampled layers
+        if tt_health_da is not None:
+            row["tt_health_min"] = float(tt_health_da.values[r, c])
+        if tt_edu_da is not None:
+            row["tt_education_min"] = float(tt_edu_da.values[r, c])
+        if bldg_dens_da is not None:
+            row["building_density"] = float(bldg_dens_da.values[r, c])
+        if gsl_da is not None:
+            row["gsl_median_days"] = float(gsl_da.values[r, c])
+        if spei_da is not None:
+            row["spei12_drought_events"] = float(spei_da.values[r, c])
 
         rows.append(row)
 

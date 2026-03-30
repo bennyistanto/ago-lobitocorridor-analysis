@@ -256,6 +256,14 @@ def _cluster_stats(lbl_da: xr.DataArray,
     if rasters.get("rwi") is not None:
         rwi_mean = mean_by_label(rasters["rwi"].values.astype("float32"))
 
+    # --- v2 indicators ---
+    tt_health_mean = mean_by_label(rasters["tt_health"].values) if rasters.get("tt_health") is not None else None
+    tt_edu_mean = mean_by_label(rasters["tt_edu"].values) if rasters.get("tt_edu") is not None else None
+    bldg_dens_mean = mean_by_label(rasters["bldg_dens"].values) if rasters.get("bldg_dens") is not None else None
+    dre_demand_sum = sum_by_label(rasters["dre_demand"].values) if rasters.get("dre_demand") is not None else None
+    gsl_mean = mean_by_label(rasters["gsl"].values) if rasters.get("gsl") is not None else None
+    spei_mean = mean_by_label(rasters["spei"].values) if rasters.get("spei") is not None else None
+
     # flood-road risk (count flagged cells)
     risk_cnt = sum_by_label((risk.values > 0.5).astype(np.uint8)) if risk is not None else None
     # flood depth (mean)
@@ -306,6 +314,14 @@ def _cluster_stats(lbl_da: xr.DataArray,
         # Cropland-flood exposure overlay
         if cropland_flood_km2 is not None:
             row["cropland_flood_exposed_km2"] = float(cropland_flood_km2[k])
+
+        # v2 indicators per cluster
+        if tt_health_mean is not None: row["tt_health_mean_min"] = float(tt_health_mean[k])
+        if tt_edu_mean is not None:    row["tt_edu_mean_min"] = float(tt_edu_mean[k])
+        if bldg_dens_mean is not None: row["building_density_mean"] = float(bldg_dens_mean[k])
+        if dre_demand_sum is not None: row["dre_demand_total"] = float(dre_demand_sum[k])
+        if gsl_mean is not None:       row["gsl_median_days"] = float(gsl_mean[k])
+        if spei_mean is not None:      row["spei12_events_mean"] = float(spei_mean[k])
 
         # Benefit density / cost-effectiveness proxies
         a_km2 = float(area_km2[k])
@@ -382,6 +398,14 @@ def main() -> None:
     # Relative Wealth Index (optional; aligned in Step 00 if present)
     rwi = _open_align(out_r("rwi_meta_1km"), T, "bilinear")
 
+    # --- v2 optional context rasters ---
+    tt_health  = _open_align(out_r("tt_health_motorised_1km"), T, "bilinear")
+    tt_edu     = _open_align(out_r("tt_education_motorised_1km"), T, "bilinear")
+    bldg_dens  = _open_align(out_r("building_density_1km"), T, "bilinear")
+    dre_demand = _open_align(out_r("dre_demand_density_1km"), T, "bilinear")
+    gsl        = _open_align(out_r("gsl_median_1km"), T, "bilinear")
+    spei       = _open_align(out_r("spei12_num_events_1km"), T, "bilinear")
+
     # Admin2 labels (for dominant municipality)
     admin2_lbl, admin2_lut = _admin2_label_grid(T)
 
@@ -403,7 +427,10 @@ def main() -> None:
     # 4) Compute stats
     ras = {
         "pop": pop, "cropf": cropf, "grid": grid, "rural": rural,
-        "drt": drt, "risk": risk, "flood": flood, "rwi": rwi
+        "drt": drt, "risk": risk, "flood": flood, "rwi": rwi,
+        # v2 layers
+        "tt_health": tt_health, "tt_edu": tt_edu, "bldg_dens": bldg_dens,
+        "dre_demand": dre_demand, "gsl": gsl, "spei": spei,
     }
     df = _cluster_stats(lbl_da, T, ras, admin2_lbl, admin2_lut)
 
@@ -424,6 +451,11 @@ def main() -> None:
         "rwi_mean",
         "cropland_flood_exposed_km2",
         "pop_density_per_km2", "pop_per_risk_roadcell",
+        # v2 indicators
+        "tt_health_mean_min", "tt_edu_mean_min",
+        "building_density_mean", "dre_demand_total",
+        "gsl_median_days", "spei12_events_mean",
+        # location & admin
         "centroid_lon", "centroid_lat",
         "ADM2CD_c", "NAM_1", "NAM_2",
     ] + [f"share_le_{int(thr)}m" for thr in iso_thresholds]
@@ -437,12 +469,14 @@ def main() -> None:
     for c in ints:
         df[c] = pd.to_numeric(df[c], errors="coerce").round(0).astype("Int64")
 
-    floats_1 = ["mean_travel_min", "flood_depth_mean_m"]
+    floats_1 = ["mean_travel_min", "flood_depth_mean_m",
+                "tt_health_mean_min", "tt_edu_mean_min", "gsl_median_days"]
     for c in floats_1:
         df[c] = pd.to_numeric(df[c], errors="coerce").astype("float64").round(1)
 
     floats_2 = ["area_km2", "cropland_km2", "rwi_mean", "cropland_flood_exposed_km2",
-                 "pop_density_per_km2", "pop_per_risk_roadcell"]
+                 "pop_density_per_km2", "pop_per_risk_roadcell",
+                 "building_density_mean", "dre_demand_total", "spei12_events_mean"]
     for c in floats_2:
         df[c] = pd.to_numeric(df[c], errors="coerce").astype("float64").round(2)
 

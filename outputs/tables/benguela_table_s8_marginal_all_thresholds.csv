@@ -87,15 +87,15 @@ site_index,lon,lat,thresh_min,pop_marginal,pop_total_catch,pct_marginal,no,proje
 22,14.00276944,-13.02198333,60,36237.87109375,240769.421875,15.050861031914415,7,Requalificação da rede eléctrica na sede do Município do Caimbambo,Energia,Caimbambo
 22,14.00276944,-13.02198333,120,66628.9921875,1395286.0,4.775292820790863,7,Requalificação da rede eléctrica na sede do Município do Caimbambo,Energia,Caimbambo
 22,14.00276944,-13.02198333,240,45922.3046875,3139524.0,1.4627155163489751,7,Requalificação da rede eléctrica na sede do Município do Caimbambo,Energia,Caimbambo
-24,13.48618333,-12.60254167,30,484.6084289550781,909607.5,0.0532766527271463,9,Reabilitação da via de acesso ao bairro Capilongo,Vias de Acesso,Benguela
-24,13.48618333,-12.60254167,60,76.39701080322266,1654574.5,0.004617320695032,9,Reabilitação da via de acesso ao bairro Capilongo,Vias de Acesso,Benguela
-24,13.48618333,-12.60254167,120,1735.366943359375,1824859.75,0.095095907691502,9,Reabilitação da via de acesso ao bairro Capilongo,Vias de Acesso,Benguela
-24,13.48618333,-12.60254167,240,29420.35546875,2882267.5,1.0207364676855983,9,Reabilitação da via de acesso ao bairro Capilongo,Vias de Acesso,Benguela
-25,14.25963,-13.04825,30,18066.0703125,158658.421875,11.38677045882472,10,"Construção de ponte sobre o rio Cubal da Ganda Cassiva, numa extensão de 5 metros de",Vias de Acesso,Cubal
-25,14.25963,-13.04825,60,39384.11328125,393439.75,10.010201887646076,10,"Construção de ponte sobre o rio Cubal da Ganda Cassiva, numa extensão de 5 metros de",Vias de Acesso,Cubal
-25,14.25963,-13.04825,120,84020.734375,784073.9375,10.71591980762656,10,"Construção de ponte sobre o rio Cubal da Ganda Cassiva, numa extensão de 5 metros de",Vias de Acesso,Cubal
-25,14.25963,-13.04825,240,50564.22265625,3173738.5,1.5932069594344334,10,"Construção de ponte sobre o rio Cubal da Ganda Cassiva, numa extensão de 5 metros de",Vias de Acesso,Cubal
-26,14.25974,-13.04839,30,18066.0703125,158658.421875,11.38677045882472,10,"Construção de ponte sobre o rio Cubal da Ganda Cassiva, numa extensão de 5 metros de",Vias de Acesso,Cubal
-26,14.25974,-13.04839,60,39384.11328125,393439.75,10.010201887646076,10,"Construção de ponte sobre o rio Cubal da Ganda Cassiva, numa extensão de 5 metros de",Vias de Acesso,Cubal
-26,14.25974,-13.04839,120,84020.734375,784073.9375,10.71591980762656,10,"Construção de ponte sobre o rio Cubal da Ganda Cassiva, numa extensão de 5 metros de",Vias de Acesso,Cubal
-26,14.25974,-13.04839,240,50564.22265625,3173738.5,1.5932069594344334,10,"Construção de ponte sobre o rio Cubal da Ganda Cassiva, numa extensão de 5 metros de",Vias de Acesso,Cubal
+23,13.48618333,-12.60254167,30,484.6084289550781,909607.5,0.0532766527271463,8,Construção de uma central Híbrida (5 MW),Energia,Catengue
+23,13.48618333,-12.60254167,60,76.39701080322266,1654574.5,0.004617320695032,8,Construção de uma central Híbrida (5 MW),Energia,Catengue
+23,13.48618333,-12.60254167,120,1735.366943359375,1824859.75,0.095095907691502,8,Construção de uma central Híbrida (5 MW),Energia,Catengue
+23,13.48618333,-12.60254167,240,29420.35546875,2882267.5,1.0207364676855983,8,Construção de uma central Híbrida (5 MW),Energia,Catengue
+24,14.25963,-13.04825,30,18066.0703125,158658.421875,11.38677045882472,9,Reabilitação da via de acesso ao bairro Capilongo,Vias de Acesso,Benguela
+24,14.25963,-13.04825,60,39384.11328125,393439.75,10.010201887646076,9,Reabilitação da via de acesso ao bairro Capilongo,Vias de Acesso,Benguela
+24,14.25963,-13.04825,120,84020.734375,784073.9375,10.71591980762656,9,Reabilitação da via de acesso ao bairro Capilongo,Vias de Acesso,Benguela
+24,14.25963,-13.04825,240,50564.22265625,3173738.5,1.5932069594344334,9,Reabilitação da via de acesso ao bairro Capilongo,Vias de Acesso,Benguela
+25,14.25974,-13.04839,30,18066.0703125,158658.421875,11.38677045882472,10,"Construção de ponte sobre o rio Cubal da Ganda Cassiva, numa extensão de 5 metros de",Vias de Acesso,Cubal
+25,14.25974,-13.04839,60,39384.11328125,393439.75,10.010201887646076,10,"Construção de ponte sobre o rio Cubal da Ganda Cassiva, numa extensão de 5 metros de",Vias de Acesso,Cubal
+25,14.25974,-13.04839,120,84020.734375,784073.9375,10.71591980762656,10,"Construção de ponte sobre o rio Cubal da Ganda Cassiva, numa extensão de 5 metros de",Vias de Acesso,Cubal
+25,14.25974,-13.04839,240,50564.22265625,3173738.5,1.5932069594344334,10,"Construção de ponte sobre o rio Cubal da Ganda Cassiva, numa extensão de 5 metros de",Vias de Acesso,Cubal

@@ -46,7 +46,7 @@ from shapely.geometry import Point
 from config import (
     AOI, PATHS, PARAMS, get_logger,
     out_t, out_r, muni_path_for, ADMIN2_THEMES,
-    RESAMPLE,
+    RESAMPLE, Params, PRESETS, ACTIVE_PRESET, preset_to_params,
 )
 
 from utils_geo import (
@@ -55,36 +55,8 @@ from utils_geo import (
 
 log = get_logger(__name__)
 
-# -------------------------------
-# Parameters (with safe defaults)
-# -------------------------------
-# Gravity parameters (can be set in PARAMS to override defaults)
-ALPHA   = float(getattr(PARAMS, "OD_ALPHA", 1.0))       # exponent on origin mass
-GAMMA   = float(getattr(PARAMS, "OD_GAMMA", 1.0))       # exponent on destination mass
-
-# Choose impedance: "exp" uses exp(-lambda*D), "pow" uses (1 + D)**(-beta)
-F_TYPE  = str(getattr(PARAMS, "OD_F", "exp")).lower()
-LAMBDA  = float(getattr(PARAMS, "OD_LAMBDA", 0.015))    # used if F_TYPE == "exp"
-BETA    = float(getattr(PARAMS, "OD_BETA", 1.5))        # used if F_TYPE == "pow"
-
-# Total trips to scale to (screening target)
-TRIPS_TOTAL = float(getattr(PARAMS, "OD_TRIPS_TOTAL", 1_000_000.0))
-
-# Max distance cutoff (km) — set None or very large to disable
-MAX_DIST_KM = getattr(PARAMS, "OD_MAX_DIST_KM", 1500.0)
-MAX_DIST_KM = float(MAX_DIST_KM) if MAX_DIST_KM is not None else None
-
-# Use doubly-constrained gravity (IPF) to match row/col totals
-USE_DOUBLY_CONSTRAINED = bool(getattr(PARAMS, "OD_USE_DOUBLY_CONSTRAINED", False))
-
-# Mass tilt using RWI (poverty proxy): enabled + weight
-USE_RWI_IN_MASS = bool(getattr(PARAMS, "USE_RWI_IN_MASS", True))
-RWI_WEIGHT      = float(getattr(PARAMS, "RWI_WEIGHT", 0.25))  # how much to tilt mass
-
-# How many agents to sample from F for a quick viz layer
-N_AGENTS = int(getattr(PARAMS, "OD_N_AGENTS", 50_000))
-
-# Only Admin2 zones are implemented for now
+# OD parameters are resolved from the active preset inside main().
+# Only Admin2 zones are implemented for now.
 USE_ADMIN2_ZONES = True
 
 
@@ -321,17 +293,37 @@ def _sample_agents_from_flows(
 # -------------
 # Main routine
 # -------------
-def main() -> None:
+def main(params: Params | None = None) -> None:
     """
     Build an Admin2-based gravity OD matrix and sample agents.
     Writes three CSVs under outputs/tables for downstream viz.
     """
+    # Resolve preset → params
+    if params is None:
+        preset = PRESETS.get(ACTIVE_PRESET, PRESETS["balanced"])
+        params = preset_to_params(preset)
+        log.info("Preset: %s — %s", preset.name, preset.description)
+
     if not USE_ADMIN2_ZONES:
         log.error("Only Admin2 zones are implemented in Step 14 for now. Set USE_ADMIN2_ZONES=True.")
         return
 
+    # OD parameters from resolved params
+    ALPHA   = float(getattr(params, "OD_ALPHA", 1.0))
+    GAMMA   = float(getattr(params, "OD_GAMMA", 1.0))
+    F_TYPE  = str(getattr(params, "OD_F", "exp")).lower()
+    LAMBDA  = float(getattr(params, "OD_LAMBDA", 0.015))
+    BETA    = float(getattr(params, "OD_BETA", 1.5))
+    TRIPS_TOTAL = float(getattr(params, "OD_TRIPS_TOTAL", 1_000_000.0))
+    _max = getattr(params, "OD_MAX_DIST_KM", 1500.0)
+    MAX_DIST_KM = float(_max) if _max is not None else None
+    USE_DOUBLY_CONSTRAINED = bool(getattr(params, "OD_USE_DOUBLY_CONSTRAINED", False))
+    USE_RWI_IN_MASS = bool(getattr(params, "USE_RWI_IN_MASS", True))
+    RWI_WEIGHT      = float(getattr(params, "RWI_WEIGHT", 0.25))
+    N_AGENTS = int(getattr(params, "OD_N_AGENTS", 50_000))
+
     # 1) Template & population raster
-    T = open_template(PARAMS.TARGET_GRID)
+    T = open_template(params.TARGET_GRID)
 
     pop_fp = PATHS.OUT_R / f"{AOI}_pop_1km.tif"
     if not pop_fp.exists():
@@ -459,7 +451,7 @@ def main() -> None:
     log.info(f"Wrote {out_agents.name} (N={len(agents)})")
 
     # 9) OD-bottleneck overlay: rank flood-risk road cells by flow load
-    _od_bottleneck_overlay(F, cent, D, df_z)
+    _od_bottleneck_overlay(F, cent, D, df_z, params=params)
 
     log.info("Step 14 complete.")
 
@@ -469,6 +461,7 @@ def _od_bottleneck_overlay(
     cent: pd.DataFrame,
     D: np.ndarray,
     df_z: pd.DataFrame,
+    params: Params = PARAMS,
 ) -> None:
     """
     Link OD flows to flood-risk road cells (Step 04 output).
@@ -493,7 +486,7 @@ def _od_bottleneck_overlay(
         log.warning("Road-risk raster not found (%s); skipping OD-bottleneck overlay.", risk_fp.name)
         return
 
-    T = open_template(PARAMS.TARGET_GRID)
+    T = open_template(params.TARGET_GRID)
     risk = rxr.open_rasterio(risk_fp, masked=True).squeeze()
     if (risk.shape != T.shape) or (risk.rio.transform() != T.rio.transform()):
         risk = risk.rio.reproject_match(T, resampling=RESAMPLE("nearest"))

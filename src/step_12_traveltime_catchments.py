@@ -68,8 +68,9 @@ import rioxarray as rxr
 from skimage.graph import MCP_Geometric
 
 from config import (
-    AOI, PATHS, PARAMS, get_logger, out_r, 
+    AOI, PATHS, PARAMS, get_logger, out_r,
     CATCHMENTS_KPI_CSV,
+    Params, PRESETS, ACTIVE_PRESET, preset_to_params,
 )
 from utils_geo import open_template, write_gtiff, cell_area_km2_latlon, align_to_template
 
@@ -273,7 +274,7 @@ def _optional_kpis(mask: xr.DataArray, rasters: Dict[str, xr.DataArray], T: xr.D
         rwi_vals = rwi.values
         # simple (unweighted) mean over reached cells
         rwi_masked = rwi_vals[m]
-        if rwi_masked.size > 0:
+        if rwi_masked.size > 0 and np.any(np.isfinite(rwi_masked)):
             out["rwi_mean"] = float(np.nanmean(rwi_masked))
 
         # population-weighted mean (if pop present and >0)
@@ -283,18 +284,36 @@ def _optional_kpis(mask: xr.DataArray, rasters: Dict[str, xr.DataArray], T: xr.D
             if np.nansum(w) > 0:
                 out["rwi_pop_weighted"] = float(np.nansum(rwi_masked * w) / np.nansum(w))
 
+    # Extra KPI rasters from preset (v2: health, SPEI, phenology, etc.)
+    # These are already loaded into ras_for_kpis by the caller; extract mean/sum
+    for key, da in rasters.items():
+        if key in ("pop", "cropf", "rwi") or da is None:
+            continue
+        # For density/rate indicators: mean; for demand/count: sum
+        vals = da.values[m]
+        if vals.size > 0 and np.any(np.isfinite(vals)):
+            out[f"{key}_mean"] = float(np.nanmean(vals))
+
     return out
 
 
 # --------------------------------- main --------------------------------------
 
-def main() -> None:
+def main(params: Params | None = None) -> None:
     """
     Build a road-aware friction raster (minutes/km), run cost-distance from each project site,
     save per-threshold isochrone masks, and (optionally) write a KPI table.
     """
+    # Resolve preset → params
+    if params is None:
+        preset = PRESETS.get(ACTIVE_PRESET, PRESETS["balanced"])
+        params = preset_to_params(preset)
+        log.info("Preset: %s — %s", preset.name, preset.description)
+    else:
+        preset = None
+
     # Template (1-km) grid
-    T = open_template(PARAMS.TARGET_GRID)
+    T = open_template(params.TARGET_GRID)
     tf = T.rio.transform()
     resx, resy = abs(tf.a), abs(tf.e)
     log.info(f"Template grid | CRS={T.rio.crs} | size={T.rio.height}x{T.rio.width} | cell={resx:.4f}x{resy:.4f}")
@@ -310,6 +329,15 @@ def main() -> None:
     else:
         sites = sites.to_crs("EPSG:4326")
     sites = sites[~sites.geometry.is_empty & sites.geometry.notnull()].copy()
+    # Filter out sites with nodata / nonsensical coordinates (e.g. -1.79e308)
+    def _valid_coords(geom):
+        pt = geom.centroid if geom.geom_type.lower() != "point" else geom
+        return np.isfinite(pt.x) and np.isfinite(pt.y) and -180 <= pt.x <= 180 and -90 <= pt.y <= 90
+    n_before = len(sites)
+    sites = sites[sites.geometry.apply(_valid_coords)].copy()
+    n_dropped = n_before - len(sites)
+    if n_dropped:
+        log.warning("Dropped %d site(s) with invalid coordinates", n_dropped)
     if sites.empty:
         log.warning("No project points found in SITES; nothing to compute.")
         return
@@ -326,8 +354,20 @@ def main() -> None:
     rwi   = _open_align(out_r("rwi_meta_1km"), T, "bilinear")
     ras_for_kpis = {"pop": pop, "cropf": cropf, "rwi": rwi}
 
-    thresholds = tuple(getattr(PARAMS, "ISO_THRESH", (30, 60, 120)))
-    max_cost_min = float(getattr(PARAMS, "MAX_COST_MIN", max(thresholds) + 60.0))
+    # Extra KPI rasters from active preset (e.g. health facility proximity)
+    extra_kpis = preset.EXTRA_KPI_RASTERS if preset else None
+    if extra_kpis:
+        for alias, basename in extra_kpis.items():
+            extra_path = PATHS.OUT_R / f"{AOI}_{basename}.tif"
+            ras = _open_align(extra_path, T, "bilinear")
+            if ras is not None:
+                ras_for_kpis[alias] = ras
+                log.info("Extra KPI raster '%s' loaded from %s", alias, extra_path.name)
+            else:
+                log.warning("Extra KPI raster '%s' not found: %s", alias, extra_path.name)
+
+    thresholds = tuple(getattr(params, "ISO_THRESH", (30, 60, 120)))
+    max_cost_min = float(getattr(params, "MAX_COST_MIN", max(thresholds) + 60.0))
 
     # Output KPI rows
     kpi_rows: List[Dict] = []
@@ -355,7 +395,8 @@ def main() -> None:
                 **kpis
             }
             # Mean travel minutes within this isochrone (accumulated cost surface)
-            row["mean_travel_min"] = float(np.nanmean(acc.values[msk.values > 0]))
+            _reached = acc.values[msk.values > 0]
+            row["mean_travel_min"] = float(np.nanmean(_reached)) if (_reached.size > 0 and np.any(np.isfinite(_reached))) else np.nan
 
             kpi_rows.append(row)
 

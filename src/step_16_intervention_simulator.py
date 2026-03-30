@@ -169,6 +169,14 @@ def main() -> None:
     else:
         sites = sites.to_crs("EPSG:4326")
     sites = sites[~sites.geometry.is_empty & sites.geometry.notnull()].copy()
+    # Filter out sites with nodata / nonsensical coordinates (e.g. -1.79e308)
+    def _valid_coords(geom):
+        pt = geom.centroid if geom.geom_type.lower() != "point" else geom
+        return np.isfinite(pt.x) and np.isfinite(pt.y) and -180 <= pt.x <= 180 and -90 <= pt.y <= 90
+    n_before = len(sites)
+    sites = sites[sites.geometry.apply(_valid_coords)].copy()
+    if len(sites) < n_before:
+        log.warning("Dropped %d site(s) with invalid coordinates", n_before - len(sites))
 
     starts = _site_starts(sites, T)
     if not starts:

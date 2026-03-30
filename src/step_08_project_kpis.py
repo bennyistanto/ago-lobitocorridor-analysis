@@ -197,6 +197,20 @@ def main() -> None:
     risk  = open_and_align(_P.OUT_R / f"{AOI}_roads_flood_risk_cells_1km.tif", T, RESAMPLE_DEFAULT_CAT)
     pov   = open_and_align(_P.OUT_R / f"{AOI}_muni_poverty_poverty_rural_1km.tif", T, RESAMPLE_DEFAULT_CONT)
 
+    # --- v2 optional layers ---
+    from config import out_r as _out_r
+    tt_health  = open_and_align(_out_r("tt_health_motorised_1km"), T, RESAMPLE_DEFAULT_CONT)
+    tt_edu     = open_and_align(_out_r("tt_education_motorised_1km"), T, RESAMPLE_DEFAULT_CONT)
+    bldg_dens  = open_and_align(_out_r("building_density_1km"), T, RESAMPLE_DEFAULT_CONT)
+    dre_demand = open_and_align(_out_r("dre_demand_density_1km"), T, RESAMPLE_DEFAULT_CONT)
+    gsl        = open_and_align(_out_r("gsl_median_1km"), T, RESAMPLE_DEFAULT_CONT)
+
+    v2_present = [k for k, v in {"tt_health": tt_health, "tt_edu": tt_edu,
+                                  "bldg_dens": bldg_dens, "dre_demand": dre_demand,
+                                  "gsl": gsl}.items() if v is not None]
+    if v2_present:
+        log.info("v2 layers for project KPIs: %s", ", ".join(v2_present))
+
     # --- AOI-wide denominators snapshot (for consistent logs across steps) ---
     try:
         pop_total = float(np.nansum(pop.values)) if pop is not None else np.nan
@@ -253,6 +267,9 @@ def main() -> None:
         # Point only; if line/polygon, take centroid
         pt = geom.centroid if geom.geom_type.lower() != "point" else geom
         lon, lat = float(pt.x), float(pt.y)
+        # Guard: skip sites with nodata / nonsensical coordinates
+        if not (np.isfinite(lon) and np.isfinite(lat) and -180 <= lon <= 180 and -90 <= lat <= 90):
+            continue
 
         row = {
             "project_id": rec.get("id", i),
@@ -313,6 +330,25 @@ def main() -> None:
             else:
                 risk_count = np.nan
 
+            # --- v2 KPIs per radius ---
+            def _safe_nanmean(arr):
+                """nanmean that returns NaN instead of warning on empty/all-NaN slice."""
+                return float(np.nanmean(arr)) if (arr.size > 0 and np.any(np.isfinite(arr))) else np.nan
+
+            v2_kpis = {}
+            if tt_health is not None and denom_cells > 0:
+                v2_kpis[f"tt_health_mean_{rkm}km"] = _safe_nanmean(tt_health.values[m_bool])
+                health_ok = int(np.nansum((tt_health.values <= 60.0) * m_bool))
+                v2_kpis[f"health_cover_60min_{rkm}km"] = health_ok / denom_cells
+            if tt_edu is not None and denom_cells > 0:
+                v2_kpis[f"tt_edu_mean_{rkm}km"] = _safe_nanmean(tt_edu.values[m_bool])
+            if bldg_dens is not None and denom_cells > 0:
+                v2_kpis[f"bldg_dens_mean_{rkm}km"] = _safe_nanmean(bldg_dens.values[m_bool])
+            if dre_demand is not None:
+                v2_kpis[f"dre_demand_sum_{rkm}km"] = float(np.nansum(dre_demand.values[m_bool]))
+            if gsl is not None and denom_cells > 0:
+                v2_kpis[f"gsl_mean_{rkm}km"] = _safe_nanmean(gsl.values[m_bool])
+
             # write into row
             row.update({
                 f"pop_{rkm}km": pop_sum,
@@ -323,6 +359,7 @@ def main() -> None:
                 f"pct_rural_{rkm}km": pct_rural,
                 f"pct_priority_{rkm}km": pct_prio,
                 f"risk_roadcells_{rkm}km": risk_count,
+                **v2_kpis,
             })
 
         rows.append(row)

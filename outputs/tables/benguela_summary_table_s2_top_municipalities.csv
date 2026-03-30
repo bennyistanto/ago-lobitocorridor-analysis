@@ -1,6 +1,6 @@
-Province (AOI),Municipality (Admin2),Composite score (0–1),Rural poverty index,Food insecurity index,Mean travel time (min),% electrified,Share of province priority area (%)
-benguela,Catumbela,0.702,0.353,0.672,30.519,54.1,0.0
-benguela,Benguela,0.683,0.349,0.666,49.682,15.0,0.0
-benguela,Caimbambo,0.646,0.596,0.79,131.391,10.4,7.38
-benguela,Cubal,0.629,0.74,0.764,178.319,6.1,70.097
-benguela,Baia Farta,0.629,0.442,0.673,75.299,50.6,0.0
+Province (AOI),Municipality (Admin2),Composite score (0-1),Rural poverty index,Food insecurity index,Mean travel time (min),% electrified,Share of province priority area (%),tt_health_mean (min),tt_edu_mean (min),GSL median (days),Drought events (mean),Building density (mean)
+benguela,Cubal,0.655,0.74,0.764,178.319,0.787,11.288,70.118,37.404,254.992,19.466,0.001
+benguela,Chongoroi,0.626,0.765,0.818,190.614,0.0,0.0,118.349,101.158,248.554,16.396,0.0
+benguela,Ganda,0.625,0.636,0.772,164.634,0.779,2.285,109.129,50.216,268.954,21.036,0.001
+benguela,Balombo,0.556,0.694,0.71,142.535,0.565,0.0,82.676,63.21,271.317,27.352,0.001
+benguela,Bocoio,0.527,0.652,0.702,107.099,0.339,0.0,61.028,44.55,261.693,25.308,0.0

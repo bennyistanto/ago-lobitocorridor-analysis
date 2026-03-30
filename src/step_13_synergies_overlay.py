@@ -74,6 +74,7 @@ from pyproj import Geod, Transformer
 
 from config import (
     AOI, PATHS, PARAMS, get_logger, out_t,
+    Params, PRESETS, ACTIVE_PRESET, preset_to_params,
 )
 
 log = get_logger(__name__)
@@ -246,6 +247,14 @@ def _load_sites() -> gpd.GeoDataFrame:
     else:
         g = g.to_crs("EPSG:4326")
     g = g[~g.geometry.is_empty & g.geometry.notnull()].copy()
+    # Filter out sites with nodata / nonsensical coordinates (e.g. -1.79e308)
+    def _valid(geom):
+        pt = geom.centroid if geom.geom_type.lower() != "point" else geom
+        return np.isfinite(pt.x) and np.isfinite(pt.y) and -180 <= pt.x <= 180 and -90 <= pt.y <= 90
+    n_before = len(g)
+    g = g[g.geometry.apply(_valid)].copy()
+    if len(g) < n_before:
+        log.warning("Dropped %d site(s) with invalid coordinates", n_before - len(g))
     if g.empty:
         log.warning("SITES layer is empty.")
     return g
@@ -391,13 +400,20 @@ def _write_empty_site_synergies(reason: str) -> None:
 
 # ========================== main ==========================
 
-def main() -> None:
+def main(params: Params | None = None) -> None:
     """
     Build site-level and (if available) cluster-level synergies tables:
       - dist to nearest Gov/WB/Oth investment (km)
       - counts of Gov/WB/Oth within configured radii
     Save to outputs/tables.
     """
+    # Resolve preset → params
+    if params is None:
+        preset = PRESETS.get(ACTIVE_PRESET, PRESETS["balanced"])
+        params = preset_to_params(preset)
+        log.info("Preset: %s — %s", preset.name, preset.description)
+    else:
+        preset = None
 
     # ------------------------------------------------------------------
     # 1) Load sites, tolerating missing SITES layer
@@ -421,6 +437,34 @@ def main() -> None:
     g_gov = _load_optional_layer(PROJECTS_GOV, "gov")
     g_wb  = _load_optional_layer(PROJECTS_WB,  "wb")
     g_oth = _load_optional_layer(PROJECTS_OTH, "oth")
+
+    # Sector filtering from active preset (e.g. only count ag projects for food_security)
+    sector_filter = preset.SYNERGY_SECTOR_FILTER if preset else None
+    if sector_filter:
+        for src_key, gdf, label in [("gov", g_gov, "gov"), ("wb", g_wb, "wb"), ("oth", g_oth, "oth")]:
+            if src_key in sector_filter and not gdf.empty:
+                allowed = sector_filter[src_key]
+                # Try common column names for sector
+                for col in ("sector", "Sector", "SECTOR", "theme", "Theme"):
+                    if col in gdf.columns:
+                        before = len(gdf)
+                        mask = gdf[col].str.lower().isin([s.lower() for s in allowed])
+                        if mask.any():
+                            if label == "gov":
+                                g_gov = gdf.loc[mask].copy()
+                            elif label == "wb":
+                                g_wb = gdf.loc[mask].copy()
+                            else:
+                                g_oth = gdf.loc[mask].copy()
+                            log.info("Sector filter on %s: %d → %d (kept: %s)",
+                                     label, before, int(mask.sum()), allowed)
+                        else:
+                            log.warning("Sector filter on %s: no rows match %s in column '%s'",
+                                        label, allowed, col)
+                        break
+                else:
+                    log.info("Sector filter requested for %s but no sector column found; skipping",
+                             label)
 
     # ------------------------------------------------------------------
     # 3) Site-level synergies (skip cleanly if no sites)
